@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedInNowhere ۳.۰ | دستیار هوشمند سلامت</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#4cff8d">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0d1b2a, #1b263b);
+            font-family: 'Tahoma', 'Segoe UI', sans-serif;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .navbar {
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(8px);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(76,255,141,0.2);
+        }
+        .logo { color: #4cff8d; font-weight: bold; font-size: 24px; }
+        .nav-links { display: flex; gap: 20px; list-style: none; }
+        .nav-links a { color: #ccc; text-decoration: none; transition: color 0.3s; font-size: 16px; }
+        .nav-links a:hover { color: #4cff8d; }
+        .hero {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 30px;
+        }
+        .hero h1 { font-size: 46px; color: #4cff8d; margin-bottom: 15px; }
+        .hero p { font-size: 18px; color: #aaa; max-width: 600px; margin-bottom: 30px; line-height: 1.8; }
+        .feature-cards { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 20px; }
+        .card {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(8px);
+            border-radius: 16px;
+            padding: 25px;
+            width: 220px;
+            text-align: center;
+            border: 1px solid rgba(76,255,141,0.15);
+            transition: transform 0.3s;
+            cursor: pointer;
+        }
+        .card:hover { transform: translateY(-5px); }
+        .card .emoji { font-size: 40px; margin-bottom: 10px; }
+        .card h3 { color: #4cff8d; margin-bottom: 10px; }
+        .card p { font-size: 14px; color: #bbb; }
+        .footer { text-align: center; padding: 15px; color: #555; font-size: 13px; border-top: 1px solid rgba(76,255,141,0.1); }
+        a { text-decoration: none; color: inherit; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🩺 MedInNowhere ۳.۰</div>
+        <ul class="nav-links">
+            <li><a href="/">🏠 خانه</a></li>
+            {% if session.user_id %}
+                {% if session.user_role in ('doctor', 'admin') %}
+                    <li><a href="/terminal">💻 ترمینال</a></li>
+                    <li><a href="/referrals">📋 ارجاع‌ها</a></li>
+                {% endif %}
+                <li><a href="/patient">👤 بیمار</a></li>
+                <li><a href="/xray">🦴 تشخیص تصویری</a></li>
+                <li><a href="/translate">🌐 ترجمه</a></li>
+                {% if session.user_role == 'admin' %}
+                    <li><a href="/bulk">📥 افزودن گروهی</a></li>
+                {% endif %}
+                <li><a href="/profile">👤 پروفایل</a></li>
+                <li><a href="/history">📋 تاریخچه</a></li>
+                <li><a href="/reminders">⏰ یادآور دارو</a></li>
+                <li><a href="/connect">📡 اتصال</a></li>
+                <li><span style="color:#4cff8d;">{{ session.full_name or session.username }}</span></li>
+                <li><a href="/logout">🚪 خروج</a></li>
+            {% else %}
+                <li><a href="/login">🔑 ورود</a></li>
+                <li><a href="/register">📝 ثبت‌نام</a></li>
+                <li><a href="/connect">📡 اتصال</a></li>
+            {% endif %}
+            <li><a href="/about">📖 درباره</a></li>
+        </ul>
+    </nav>
+
+    <div class="hero">
+        <h1>سلام! من MedInNowhere هستم 🩺</h1>
+        <p>
+            پزشک در ناکجاآباد — نسخه ۳.۰<br>
+            با تشخیص هوشمند، تحلیل تصویر ارتوپدی، چت زنده و مدیریت سلامت
+        </p>
+
+        <div class="feature-cards">
+            {% if session.user_role in ('doctor', 'admin') %}
+            <a href="/terminal">
+                <div class="card">
+                    <div class="emoji">💻</div>
+                    <h3>ترمینال پزشک</h3>
+                    <p>دستورات CMD و جستجوی سریع</p>
+                </div>
+            </a>
+            <a href="/referrals">
+                <div class="card">
+                    <div class="emoji">📋</div>
+                    <h3>ارجاع و چت</h3>
+                    <p>مدیریت بیماران و گفتگوی زنده</p>
+                </div>
+            </a>
+            {% endif %}
+            <a href="/patient">
+                <div class="card">
+                    <div class="emoji">👤</div>
+                    <h3>فرم بیمار</h3>
+                    <p>علائم، صدا و بدن‌نما</p>
+                </div>
+            </a>
+            <a href="/xray">
+                <div class="card">
+                    <div class="emoji">🦴</div>
+                    <h3>تشخیص تصویری</h3>
+                    <p>تحلیل هوش مصنوعی عکس ارتوپدی</p>
+                </div>
+            </a>
+            <a href="/translate">
+                <div class="card">
+                    <div class="emoji">🌐</div>
+                    <h3>مترجم پزشکی</h3>
+                    <p>چندزبانه و هوشمند</p>
+                </div>
+            </a>
+            {% if session.user_role == 'admin' %}
+            <a href="/bulk">
+                <div class="card">
+                    <div class="emoji">📚</div>
+                    <h3>افزودن دانش</h3>
+                    <p>بارگذاری هزاران بیماری</p>
+                </div>
+            </a>
+            {% endif %}
+            <a href="/history">
+                <div class="card">
+                    <div class="emoji">📋</div>
+                    <h3>تاریخچه تشخیص‌ها</h3>
+                    <p>مدیریت و ارجاع نتایج</p>
+                </div>
+            </a>
+            <a href="/reminders">
+                <div class="card">
+                    <div class="emoji">⏰</div>
+                    <h3>یادآور دارو</h3>
+                    <p>اعلان مصرف به‌موقع</p>
+                </div>
+            </a>
+            <a href="/connect">
+                <div class="card">
+                    <div class="emoji">📡</div>
+                    <h3>اتصال پایدار</h3>
+                    <p>آدرس‌های سرور برای PWA</p>
+                </div>
+            </a>
+            <a href="/about">
+                <div class="card">
+                    <div class="emoji">📖</div>
+                    <h3>درباره پروژه</h3>
+                    <p>اهداف و فناوری‌ها</p>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <div class="footer">
+        توسعه‌داده‌شده برای آینده پزشکی دیجیتال — MedInNowhere نسخه ۳.۰
+    </div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/static/service-worker.js')
+            .then(reg => console.log('SW registered'))
+            .catch(err => console.log('SW failed', err));
+        });
+      }
+    </script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>چت پزشک و بیمار | MedInNowhere</title>
+    <style>
+        body { background:#1e1e1e; color:#e0e0e0; font-family:Tahoma; margin:20px; }
+        #messages { height:300px; overflow-y:auto; background:#121212; padding:10px; border-radius:10px; margin-bottom:10px; }
+        input { width:80%; padding:10px; background:#121212; color:#0f0; border:1px solid #444; }
+        button { padding:10px 20px; background:#4cff8d; color:#000; border:none; cursor:pointer; }
+    </style>
+</head>
+<body>
+    <h2>💬 چت زنده – ارجاع #{{ referral_id }}</h2>
+    <div id="messages"></div>
+    <input id="msgInput" placeholder="پیام خود را بنویسید...">
+    <button onclick="sendMsg()">📨 ارسال</button>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        const room = "{{ room }}";
+        socket.emit('join', { room: room });
+
+        socket.on('message', (data) => {
+            const msgDiv = document.getElementById('messages');
+            msgDiv.innerHTML += `<p>${data}</p>`;
+        });
+
+        function sendMsg() {
+            const input = document.getElementById('msgInput');
+            socket.emit('message', { room: room, msg: input.value });
+            input.value = '';
+        }
+    </script>
+</body>
+</html>

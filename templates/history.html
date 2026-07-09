@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedInNowhere ۲.۱ | تاریخچه تشخیص‌ها</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#4cff8d">
+    <style>
+        body { background: #1e1e1e; color: #e0e0e0; font-family: Tahoma; margin: 0; }
+        .navbar { background:#121212; padding:15px 30px; display:flex; justify-content:space-between; border-bottom:1px solid #444; }
+        .navbar a { color:#ccc; text-decoration:none; margin-left:20px; }
+        .navbar a:hover { color:#4cff8d; }
+        .container { max-width:800px; margin:40px auto; padding:20px; }
+        h1 { color:#4cff8d; }
+        .history-item {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .history-item .date { color: #888; font-size: 12px; }
+        .history-item .symptoms { color: #4cff8d; font-weight: bold; margin-bottom: 10px; }
+        .history-item .result { white-space: pre-wrap; color: #0f0; margin-bottom: 10px; background: #1a1a1a; padding: 10px; border-radius: 5px; }
+        .btn-delete { background: #ff4c4c; color: #fff; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer; }
+        .btn-delete:hover { background: #e04444; }
+        .btn-refer { background: #4cff8d; color: #000; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer; margin-left: 10px; }
+        select { background: #121212; color: #0f0; border: 1px solid #444; padding: 5px; }
+        .refer-area { margin-top: 10px; }
+        .empty { text-align: center; color: #aaa; margin-top: 50px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <span style="color:#4cff8d; font-weight:bold;">🩺 MedInNowhere</span>
+        <div>
+            <a href="/">🏠 خانه</a>
+            <a href="/patient">👤 بیمار</a>
+            <a href="/history" style="color:#4cff8d;">📋 تاریخچه</a>
+            <a href="/profile">👤 پروفایل</a>
+            <a href="/logout">🚪 خروج</a>
+        </div>
+    </nav>
+    <div class="container">
+        <h1>📋 تاریخچه تشخیص‌های شما</h1>
+        <div id="historyContainer"></div>
+    </div>
+
+    <script>
+        function getCsrfToken() { return document.querySelector('meta[name="csrf-token"]').getAttribute('content'); }
+        let doctorsCache = [];
+
+        async function loadDoctors() {
+            const resp = await fetch('/api/doctors');
+            doctorsCache = await resp.json();
+        }
+
+        function getDoctorDropdown(diagId) {
+            let opts = '<option value="">انتخاب پزشک...</option>';
+            doctorsCache.forEach(d => opts += `<option value="${d.id}">${d.full_name}</option>`);
+            return `<div class="refer-area"><select id="doc-${diagId}">${opts}</select><button class="btn-refer" onclick="sendReferral(${diagId})">📨 ارسال</button></div>`;
+        }
+
+        async function sendReferral(diagId) {
+            const doctorId = document.getElementById('doc-' + diagId).value;
+            if (!doctorId) { alert('لطفاً یک پزشک انتخاب کنید.'); return; }
+            const resp = await fetch('/api/refer', { method:'POST', headers:{ 'Content-Type':'application/json', 'X-CSRF-Token': getCsrfToken() }, body: JSON.stringify({ diagnosis_id: diagId, doctor_id: parseInt(doctorId) }) });
+            if (resp.ok) alert('ارجاع با موفقیت انجام شد.');
+            else alert('خطا در ارسال ارجاع.');
+        }
+
+        async function loadHistory() {
+            await loadDoctors();
+            const container = document.getElementById('historyContainer');
+            try {
+                const resp = await fetch('/api/history');
+                const data = await resp.json();
+                if (data.length === 0) { container.innerHTML = '<div class="empty">هنوز هیچ تشخیصی ثبت نشده است.</div>'; return; }
+                let html = '';
+                data.forEach(item => {
+                    let resultHtml = item.result;
+                    try {
+                        const obj = JSON.parse(item.result);
+                        if (Array.isArray(obj)) resultHtml = obj.map(c => `🩺 ${c.name} (امتیاز ${c.matched})\n   شرح: ${c.description}\n   درمان: ${c.treatment}\n   اورژانس: ${c.urgency}`).join('\n\n');
+                    } catch(e) {}
+                    html += `<div class="history-item">
+                        <div class="date">${item.created_at} | روش: ${item.method === 'guided' ? 'گام‌به‌گام' : 'معمولی'}</div>
+                        <div class="symptoms">📝 علائم: ${item.symptoms_text}</div>
+                        <div class="result"><pre style="color:#0f0; white-space:pre-wrap; background:#1a1a1a; padding:10px; border-radius:5px;">${resultHtml}</pre></div>
+                        <button class="btn-delete" onclick="deleteHistory(${item.id})">🗑️ حذف</button>
+                        ${getDoctorDropdown(item.id)}
+                    </div>`;
+                });
+                container.innerHTML = html;
+            } catch(err) { container.innerHTML = '<div class="error">❌ خطا در بارگذاری تاریخچه</div>'; }
+        }
+
+        async function deleteHistory(id) {
+            if (!confirm('آیا مطمئن هستید؟')) return;
+            const resp = await fetch('/api/history/delete/' + id, { method:'POST', headers:{ 'X-CSRF-Token': getCsrfToken() } });
+            if (resp.ok) loadHistory();
+            else alert('خطا در حذف');
+        }
+
+        loadHistory();
+    </script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => { navigator.serviceWorker.register('/static/service-worker.js'); });
+      }
+    </script>
+</body>
+</html>

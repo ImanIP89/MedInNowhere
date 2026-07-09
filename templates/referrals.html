@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedInNowhere ۲.۱ | ارجاع‌های پزشکی</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#4cff8d">
+    <style>
+        body { background: #1e1e1e; color: #e0e0e0; font-family: Tahoma; margin: 0; }
+        .navbar { background:#121212; padding:15px 30px; display:flex; justify-content:space-between; border-bottom:1px solid #444; }
+        .navbar a { color:#ccc; text-decoration:none; margin-left:20px; }
+        .navbar a:hover { color:#4cff8d; }
+        .container { max-width:900px; margin:40px auto; padding:20px; }
+        h1 { color:#4cff8d; }
+        .referral-card {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .referral-card .patient { color: #4cff8d; font-weight: bold; }
+        .referral-card .date { color: #888; font-size: 12px; }
+        .diagnosis-box { background: #1a1a1a; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .candidate { margin-bottom: 12px; border-right: 3px solid #4cff8d; padding-right: 10px; }
+        .candidate-name { color: #4cff8d; font-weight: bold; }
+        textarea { width: 100%; background: #121212; border: 1px solid #444; color: #0f0; padding: 5px; margin-top: 5px; }
+        button { background: #4cff8d; color: #000; border: none; padding: 5px 15px; cursor: pointer; margin-top: 5px; }
+        .status { display: inline-block; padding: 2px 10px; border-radius: 5px; font-size: 12px; }
+        .pending { background: #ffa500; color: #000; }
+        .reviewed { background: #4cff8d; color: #000; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <span style="color:#4cff8d; font-weight:bold;">🩺 MedInNowhere</span>
+        <div>
+            <a href="/">🏠 خانه</a>
+            {% if session.user_role in ('doctor', 'admin') %}<a href="/terminal">💻 ترمینال</a>{% endif %}
+            <a href="/referrals" style="color:#4cff8d;">📋 ارجاع‌ها</a>
+            <a href="/patient">👤 بیمار</a>
+            <a href="/profile">👤 پروفایل</a>
+            <a href="/logout">🚪 خروج</a>
+        </div>
+    </nav>
+    <div class="container">
+        <h1>📋 ارجاع‌های پزشکی</h1>
+        <div id="referralsList"></div>
+    </div>
+
+    <script>
+        function getCsrfToken() { return document.querySelector('meta[name="csrf-token"]').getAttribute('content'); }
+        function formatDiagnosis(diagText) {
+            try {
+                const obj = JSON.parse(diagText);
+                if (Array.isArray(obj)) return obj.map(c => `<div class="candidate"><div class="candidate-name">🩺 ${c.name} (امتیاز: ${c.matched})</div><div><strong>شرح:</strong> ${c.description||'نامشخص'}</div><div><strong>درمان:</strong> ${c.treatment||'نامشخص'}</div><div><strong>اورژانس:</strong> ${c.urgency}</div></div>`).join('');
+            } catch(e) {}
+            return `<pre style="color:#0f0; white-space:pre-wrap;">${diagText}</pre>`;
+        }
+
+        async function loadReferrals() {
+            const resp = await fetch('/api/referrals');
+            const data = await resp.json();
+            const container = document.getElementById('referralsList');
+            if (data.length === 0) { container.innerHTML = '<p style="color:#aaa;">هیچ ارجاعی وجود ندارد.</p>'; return; }
+            let html = '';
+            data.forEach(ref => {
+                html += `<div class="referral-card">
+                    <div class="patient">👤 ${ref.patient_name} <span class="date">${ref.created_at}</span></div>
+                    <div><strong>علائم:</strong> ${ref.symptoms_text}</div>
+                    <div class="diagnosis-box"><strong>تشخیص‌ها:</strong>${formatDiagnosis(ref.diagnosis_text)}</div>
+                    <div><span class="status ${ref.status}">${ref.status === 'pending' ? 'در انتظار' : 'بررسی شده'}</span></div>
+                    <div><label>یادداشت پزشک:</label><br><textarea id="note-${ref.id}" rows="2">${ref.doctor_note||''}</textarea><button onclick="saveNote(${ref.id})">💾 ذخیره</button></div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        async function saveNote(refId) {
+            const note = document.getElementById('note-' + refId).value;
+            const resp = await fetch('/api/referrals/' + refId + '/note', { method:'POST', headers:{ 'Content-Type':'application/json', 'X-CSRF-Token': getCsrfToken() }, body: JSON.stringify({ note: note }) });
+            if (resp.ok) { alert('یادداشت ذخیره شد.'); loadReferrals(); }
+        }
+
+        loadReferrals();
+    </script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => { navigator.serviceWorker.register('/static/service-worker.js'); });
+      }
+    </script>
+</body>
+</html>

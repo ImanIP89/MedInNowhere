@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedInNowhere ۲.۱ | تشخیص بیمار</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#4cff8d">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0d1b2a, #1b263b);
+            font-family: 'Tahoma', 'Segoe UI', sans-serif;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 700px;
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 1px solid rgba(0,255,0,0.1);
+        }
+        .icon { text-align: center; font-size: 50px; margin-bottom: 10px; }
+        h1 { text-align: center; color: #4cff8d; margin-bottom: 5px; font-size: 28px; }
+        .subtitle { text-align: center; color: #aaa; margin-bottom: 25px; font-size: 14px; }
+        label { display: block; margin-bottom: 8px; color: #4cff8d; font-weight: bold; }
+        .input-row { display: flex; gap: 10px; align-items: flex-end; }
+        textarea {
+            flex: 1;
+            height: 120px;
+            background: #121b26;
+            border: 1px solid #2c3e50;
+            border-radius: 10px;
+            padding: 15px;
+            color: #e0f0e0;
+            font-size: 16px;
+            resize: vertical;
+            outline: none;
+            transition: border 0.3s;
+        }
+        textarea:focus { border-color: #4cff8d; }
+        .mic-btn {
+            background: #4cff8d;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mic-btn.recording {
+            background: #ff4c4c;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255,76,76,0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(255,76,76,0); }
+            100% { box-shadow: 0 0 0 0 rgba(255,76,76,0); }
+        }
+        .btn {
+            margin-top: 15px;
+            width: 100%;
+            padding: 14px;
+            background: #4cff8d;
+            color: #0a0a0a;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.1s;
+        }
+        .btn:hover { background: #3adb76; }
+        .btn:active { transform: scale(0.98); }
+        .btn-secondary { background: #1e3a2f; color: #4cff8d; }
+        .btn-secondary:hover { background: #2a4f3a; }
+        .btn-map { background: #2a2a4a; color: #4cff8d; }
+        #result, #guidedArea {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 12px;
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .urgency-low { background: rgba(0,255,0,0.1); border: 1px solid #4cff8d; }
+        .urgency-medium { background: rgba(255,165,0,0.1); border: 1px solid #ffa500; }
+        .urgency-high { background: rgba(255,0,0,0.15); border: 1px solid #ff4c4c; }
+        .error { background: rgba(255,0,0,0.1); border: 1px solid #ff4c4c; }
+        .disease-name { font-size: 22px; font-weight: bold; margin-bottom: 10px; }
+        .detail-label { color: #4cff8d; font-weight: bold; }
+        .disclaimer { margin-top: 20px; font-size: 12px; color: #888; text-align: center; }
+        .status-text { font-size: 12px; color: #aaa; margin-top: 5px; }
+        .guided-question-box { background: #1e2a3a; padding: 15px; border-radius: 10px; margin: 10px 0; }
+        .answer-btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin: 5px; transition: background 0.3s; }
+        .answer-yes { background: #4cff8d; color: #0a0a0a; }
+        .answer-yes:hover { background: #3adb76; }
+        .answer-no { background: #ff4c4c; color: #fff; }
+        .answer-no:hover { background: #e04444; }
+
+        /* Modal Body Map */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #1e1e1e;
+            border: 1px solid #4cff8d;
+            border-radius: 20px;
+            padding: 20px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+        .modal-buttons { margin-top: 15px; display: flex; gap: 10px; justify-content: center; }
+        .selected-list { margin: 10px 0; color: #4cff8d; font-size: 14px; }
+        .body-part { fill: #2a2a4a; stroke: #4cff8d; stroke-width: 1.5; cursor: pointer; transition: fill 0.2s; }
+        .body-part:hover { fill: #3a4a5a; }
+        .body-part.selected { fill: #4cff8d !important; stroke: #fff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🏥</div>
+        <h1>MedInNowhere دستیار سلامت</h1>
+        <p class="subtitle">علائم خود را بنویسید، با میکروفن بگویید یا محل درد را روی بدن انتخاب کنید</p>
+        <label for="symptomsInput">📝 علائم شما:</label>
+        <div class="input-row">
+            <textarea id="symptomsInput" placeholder="مثال: از دیروز کمردرد و گزگز پا دارم..."></textarea>
+            <button class="mic-btn" id="micBtn" onclick="toggleMic()" title="گوش دادن">🎤</button>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:5px;">
+            <button class="btn btn-map" onclick="openBodyMap()">📍 انتخاب محل درد</button>
+        </div>
+        <div class="status-text" id="statusText"></div>
+        <button class="btn" onclick="getDiagnosis()">🔍 تشخیص بده</button>
+        <button class="btn btn-secondary" onclick="startGuided()">🧭 تشخیص گام‌به‌گام</button>
+        <div id="result"></div>
+        <div id="guidedArea"></div>
+        <div class="disclaimer">
+            ⚠️ این ابزار جایگزین پزشک نیست.<br>
+            <span style="font-size:10px;">MedInNowhere نسخه ۲.۱</span>
+        </div>
+    </div>
+
+    <!-- Modal Body Map -->
+    <div id="bodyMapModal" class="modal">
+        <div class="modal-content">
+            <h3 style="color:#4cff8d;">📍 محل درد خود را انتخاب کنید</h3>
+            <div style="display:flex; gap:5px; justify-content:center;">
+                <svg viewBox="0 0 200 400" width="150" height="300">
+                    <path class="body-part" data-name="سردرد" d="M85 10 Q85 0 100 0 Q115 0 115 10 L115 30 Q115 40 100 40 Q85 40 85 30 Z"/>
+                    <path class="body-part" data-name="گردن درد" d="M85 40 L115 40 L115 55 L85 55 Z"/>
+                    <path class="body-part" data-name="درد قفسه سینه" d="M85 55 L115 55 L120 110 L80 110 Z"/>
+                    <path class="body-part" data-name="درد شکم" d="M80 110 L120 110 L120 160 L80 160 Z"/>
+                    <path class="body-part" data-name="درد شانه چپ" d="M60 55 L85 55 L85 75 L60 75 Z"/>
+                    <path class="body-part" data-name="درد شانه راست" d="M115 55 L140 55 L140 75 L115 75 Z"/>
+                    <path class="body-part" data-name="درد بازوی چپ" d="M60 75 L75 75 L75 120 L60 120 Z"/>
+                    <path class="body-part" data-name="درد بازوی راست" d="M125 75 L140 75 L140 120 L125 120 Z"/>
+                    <path class="body-part" data-name="درد مچ دست چپ" d="M60 120 L75 120 L75 140 L60 140 Z"/>
+                    <path class="body-part" data-name="درد مچ دست راست" d="M125 120 L140 120 L140 140 L125 140 Z"/>
+                    <path class="body-part" data-name="درد لگن" d="M80 160 L120 160 L120 190 L80 190 Z"/>
+                    <path class="body-part" data-name="درد ران چپ" d="M80 190 L100 190 L100 250 L80 250 Z"/>
+                    <path class="body-part" data-name="درد ران راست" d="M100 190 L120 190 L120 250 L100 250 Z"/>
+                    <path class="body-part" data-name="درد زانوی چپ" d="M80 250 L100 250 L100 270 L80 270 Z"/>
+                    <path class="body-part" data-name="درد زانوی راست" d="M100 250 L120 250 L120 270 L100 270 Z"/>
+                    <path class="body-part" data-name="درد مچ پای چپ" d="M80 270 L100 270 L100 295 L80 295 Z"/>
+                    <path class="body-part" data-name="درد مچ پای راست" d="M100 270 L120 270 L120 295 L100 295 Z"/>
+                    <path class="body-part" data-name="کمردرد" d="M80 160 L120 160 L120 175 L80 175 Z"/>
+                </svg>
+            </div>
+            <div class="selected-list" id="selectedList"></div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="confirmBodySelection()">✅ تأیید</button>
+                <button class="btn btn-secondary" onclick="closeBodyMap()">❌ انصراف</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getCsrfToken() { return document.querySelector('meta[name="csrf-token"]').getAttribute('content'); }
+        // میکروفن
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition, isRecording = false;
+        if (!SpeechRecognition) {
+            document.getElementById('micBtn').style.display = 'none';
+            document.getElementById('statusText').textContent = '⚠️ مرورگر شما از تشخیص گفتار پشتیبانی نمی‌کند.';
+        } else {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'fa-IR'; recognition.interimResults = false; recognition.continuous = false;
+            recognition.onresult = (event) => {
+                document.getElementById('symptomsInput').value += (document.getElementById('symptomsInput').value ? ' ' : '') + event.results[0][0].transcript;
+                document.getElementById('statusText').textContent = '✅ متن گفتار اضافه شد.';
+            };
+            recognition.onerror = (e) => { document.getElementById('statusText').textContent = '❌ خطا: ' + e.error; stopMicUI(); };
+            recognition.onend = stopMicUI;
+        }
+        function toggleMic() {
+            if (!recognition) return;
+            if (isRecording) { recognition.stop(); stopMicUI(); }
+            else { recognition.start(); startMicUI(); document.getElementById('statusText').textContent = '🎙️ در حال گوش دادن...'; }
+        }
+        function startMicUI() { isRecording = true; document.getElementById('micBtn').classList.add('recording'); }
+        function stopMicUI() { isRecording = false; document.getElementById('micBtn').classList.remove('recording'); }
+
+        // Body Map
+        const selectedBodyParts = new Set();
+        function openBodyMap() { document.getElementById('bodyMapModal').style.display = 'flex'; document.querySelectorAll('.body-part').forEach(p => p.classList.remove('selected')); selectedBodyParts.clear(); updateSelectedList(); }
+        function closeBodyMap() { document.getElementById('bodyMapModal').style.display = 'none'; }
+        document.querySelectorAll('.body-part').forEach(p => p.addEventListener('click', function() {
+            const name = this.dataset.name;
+            if (selectedBodyParts.has(name)) { selectedBodyParts.delete(name); this.classList.remove('selected'); }
+            else { selectedBodyParts.add(name); this.classList.add('selected'); }
+            updateSelectedList();
+        }));
+        function updateSelectedList() { document.getElementById('selectedList').textContent = selectedBodyParts.size ? 'انتخاب‌ها: ' + [...selectedBodyParts].join('، ') : ''; }
+        function confirmBodySelection() {
+            const textarea = document.getElementById('symptomsInput');
+            const newSymptoms = [...selectedBodyParts].join(', ');
+            if (newSymptoms) textarea.value = textarea.value.trim() ? textarea.value + ', ' + newSymptoms : newSymptoms;
+            closeBodyMap();
+        }
+
+        // تشخیص عادی
+        async function getDiagnosis() {
+            const text = document.getElementById('symptomsInput').value.trim();
+            const resultDiv = document.getElementById('result');
+            const guidedArea = document.getElementById('guidedArea');
+            guidedArea.style.display = 'none';
+            if (!text) { resultDiv.style.display = 'block'; resultDiv.className = 'error'; resultDiv.innerHTML = '<span class="detail-label">❌ لطفاً علائم خود را وارد کنید.</span>'; return; }
+            resultDiv.style.display = 'block'; resultDiv.className = ''; resultDiv.innerHTML = '<div style="text-align:center; color:#4cff8d;">⏳ در حال بررسی...</div>';
+            try {
+                const resp = await fetch('/api/patient_diagnose', { method:'POST', headers:{ 'Content-Type':'application/json', 'X-CSRF-Token': getCsrfToken() }, body: JSON.stringify({symptoms: text}) });
+                const data = await resp.json();
+                if (data.error) { resultDiv.className = 'error'; resultDiv.innerHTML = `<span class="detail-label">❌ ${data.error}</span>`; }
+                else {
+                    let html = `<p style="color:#4cff8d;">🔍 علائم شناسایی‌شده: ${data.symptoms_found.join('، ')}</p><h3>تشخیص‌های محتمل:</h3>`;
+                    data.candidates.forEach((c, i) => {
+                        let cls = c.urgency === 'کم' ? 'urgency-low' : c.urgency === 'متوسط' ? 'urgency-medium' : 'urgency-high';
+                        html += `<div class="${cls}" style="margin-bottom:15px; padding:15px; border-radius:10px;">
+                            <div class="disease-name">🩺 ${i+1}. ${c.name} (امتیاز ${c.matched})</div>
+                            <p><span class="detail-label">📖 شرح:</span> ${c.description||'نامشخص'}</p>
+                            <p><span class="detail-label">💊 درمان:</span> ${c.treatment||'نامشخص'}</p>
+                            <p><span class="detail-label">🚨 اورژانس:</span> ${c.urgency}</p>
+                        </div>`;
+                    });
+                    resultDiv.innerHTML = html;
+                }
+            } catch(err) { resultDiv.className = 'error'; resultDiv.innerHTML = '<span class="detail-label">❌ خطا در ارتباط با سرور.</span>'; }
+        }
+
+        // Guided
+        async function startGuided() {
+            const text = document.getElementById('symptomsInput').value.trim();
+            document.getElementById('result').style.display = 'none';
+            const guided = document.getElementById('guidedArea');
+            if (!text) { alert('لطفاً علائم اولیه را وارد کنید.'); return; }
+            guided.style.display = 'block'; guided.innerHTML = '<div style="text-align:center; color:#4cff8d;">⏳ شروع مکالمه...</div>';
+            const resp = await fetch('/api/guided_start', { method:'POST', headers:{ 'Content-Type':'application/json', 'X-CSRF-Token': getCsrfToken() }, body: JSON.stringify({symptoms: text}) });
+            const data = await resp.json();
+            if (data.error) guided.innerHTML = `<div class="error">❌ ${data.error}</div>`;
+            else if (data.question) showQuestion(data.question);
+            else if (data.result) guided.innerHTML = `<pre style="color:#0f0; white-space:pre-wrap;">${data.result}</pre>`;
+        }
+        function showQuestion(q) {
+            document.getElementById('guidedArea').innerHTML = `<div class="guided-question-box" style="background: rgba(76,255,141,0.05); border: 1px solid #4cff8d;">
+                <p style="color:#4cff8d; margin-bottom:15px; font-size:18px;">${q}</p>
+                <button class="answer-btn answer-yes" onclick="submitAnswer('بله')">✅ بله</button>
+                <button class="answer-btn answer-no" onclick="submitAnswer('خیر')">❌ خیر</button>
+            </div>`;
+        }
+        async function submitAnswer(ans) {
+            const guided = document.getElementById('guidedArea');
+            guided.innerHTML = '<div style="text-align:center; color:#4cff8d;">⏳ در حال بررسی...</div>';
+            const resp = await fetch('/api/guided_answer', { method:'POST', headers:{ 'Content-Type':'application/json', 'X-CSRF-Token': getCsrfToken() }, body: JSON.stringify({answer: ans}) });
+            const data = await resp.json();
+            if (data.error) guided.innerHTML = `<div class="error">❌ ${data.error}</div>`;
+            else if (data.question) showQuestion(data.question);
+            else if (data.result) guided.innerHTML = `<pre style="color:#0f0; white-space:pre-wrap;">${data.result}</pre>`;
+        }
+    </script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/static/service-worker.js');
+        });
+      }
+    </script>
+</body>
+</html>

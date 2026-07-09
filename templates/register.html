@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ثبت‌نام | MedInNowhere</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#4cff8d">
+    <style>
+        body { background: #1e1e1e; color: #e0e0e0; font-family: Tahoma; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .box { background: #2a2a2a; padding: 30px; border-radius: 12px; width: 300px; text-align: center; }
+        input { width: 100%; padding: 10px; margin: 8px 0; background: #121212; border: 1px solid #444; color: #0f0; }
+        button { background: #4cff8d; color: #000; border: none; padding: 10px 20px; cursor: pointer; }
+        .error { color: #ff4c4c; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>📝 ثبت‌نام (بیمار)</h2>
+        {% if error %}<p class="error">{{ error }}</p>{% endif %}
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="text" name="full_name" placeholder="نام کامل">
+            <input type="text" name="username" placeholder="نام کاربری" required>
+            <input type="password" name="password" placeholder="رمز عبور" required>
+            <button type="submit">ثبت‌نام</button>
+        </form>
+        <p><a href="/login" style="color:#4cff8d;">قبلاً ثبت‌نام کرده‌اید؟</a></p>
+    </div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/static/service-worker.js');
+        });
+      }
+    </script>
+</body>
+</html>

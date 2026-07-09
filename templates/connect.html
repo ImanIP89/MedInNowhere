@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اتصال | MedInNowhere</title>
+    <style>
+        body { background: #1e1e1e; color: #e0e0e0; font-family: Tahoma; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .box { background: #2a2a2a; padding: 30px; border-radius: 16px; text-align: center; max-width: 500px; width: 90%; }
+        h2 { color: #4cff8d; }
+        .link { background: #121212; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; font-family: monospace; word-break: break-all; }
+        .link a { color: #4cff8d; text-decoration: none; }
+        .badge { display: inline-block; background: #4cff8d; color: #000; padding: 3px 10px; border-radius: 20px; font-size: 12px; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>🩺 MedInNowhere</h2>
+        <p>آدرس‌های اتصال به سرور</p>
+        
+        <div>
+            <span class="badge">توصیه برای PWA</span>
+            <div class="link">
+                🌐 <a href="http://{{ hostname }}.local:5000">http://{{ hostname }}.local:5000</a>
+            </div>
+        </div>
+        
+        <div>
+            <span class="badge">IP محلی</span>
+            <div class="link">
+                📍 <a href="http://{{ local_ip }}:5000">http://{{ local_ip }}:5000</a>
+            </div>
+        </div>
+        
+        <div>
+            <span class="badge">دستگاه فعلی</span>
+            <div class="link">
+                💻 <a href="http://127.0.0.1:5000">http://127.0.0.1:5000</a>
+            </div>
+        </div>
+        
+        <p style="margin-top:20px; font-size:12px; color:#888;">
+            برای نصب PWA، آدرس Hostname را در مرورگر موبایل باز کنید و گزینه Add to Home Screen را بزنید.
+        </p>
+    </div>
+</body>
+</html>

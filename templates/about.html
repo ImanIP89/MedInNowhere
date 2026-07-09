@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedInNowhere ۲.۱ | درباره پروژه</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#4cff8d">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0d1b2a, #1b263b);
+            font-family: 'Tahoma', 'Segoe UI', sans-serif;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .navbar {
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(8px);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(76,255,141,0.2);
+        }
+        .logo { color: #4cff8d; font-weight: bold; font-size: 24px; }
+        .nav-links { display: flex; gap: 20px; list-style: none; }
+        .nav-links a { color: #ccc; text-decoration: none; transition: color 0.3s; font-size: 16px; }
+        .nav-links a:hover { color: #4cff8d; }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            flex: 1;
+        }
+        h1 { color: #4cff8d; text-align: center; margin-bottom: 30px; font-size: 36px; }
+        .section {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(76,255,141,0.1);
+        }
+        .section h2 { color: #4cff8d; margin-bottom: 15px; }
+        .section p { line-height: 1.8; color: #ccc; margin-bottom: 10px; }
+        .tech-badge {
+            display: inline-block;
+            background: #1e3a2f;
+            color: #4cff8d;
+            padding: 5px 12px;
+            border-radius: 20px;
+            margin: 3px;
+            font-size: 14px;
+        }
+        .version {
+            text-align: center;
+            font-size: 24px;
+            color: #4cff8d;
+            margin: 20px 0;
+        }
+        .github-link {
+            display: inline-block;
+            background: #4cff8d;
+            color: #0a0a0a;
+            padding: 10px 25px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        .github-link:hover { background: #3adb76; }
+        .footer { text-align: center; padding: 15px; color: #555; font-size: 13px; border-top: 1px solid rgba(76,255,141,0.1); }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">🩺 MedInNowhere</div>
+        <ul class="nav-links">
+            <li><a href="/">🏠 خانه</a></li>
+            <li><a href="/patient">👤 بیمار</a></li>
+            <li><a href="/about" style="color:#4cff8d;">📖 درباره</a></li>
+            {% if session.user_id %}
+                <li><a href="/profile">👤 پروفایل</a></li>
+                <li><a href="/history">📋 تاریخچه</a></li>
+                <li><a href="/reminders">⏰ یادآور دارو</a></li>
+                <li><a href="/logout">🚪 خروج</a></li>
+            {% else %}
+                <li><a href="/login">🔑 ورود</a></li>
+                <li><a href="/register">📝 ثبت‌نام</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1>📖 درباره MedInNowhere</h1>
+
+        <div class="section">
+            <h2>🩺 پروژه چیست؟</h2>
+            <p>
+                <strong>MedInNowhere</strong> – پزشک در ناکجاآباد – یک دستیار هوشمند سلامت دیجیتال است که با استفاده از
+                پردازش زبان طبیعی فارسی (NLP) و هوش مصنوعی، به تشخیص اولیه‌ی بیماری‌ها
+                بر اساس علائم کاربر کمک می‌کند.
+            </p>
+            <p>
+                این پروژه به‌گونه‌ای طراحی شده که روی سخت‌افزارهای ضعیف (مانند Raspberry Pi)
+                نیز اجرا شود و قابلیت استفاده‌ی چندکاربره در شبکه‌ی محلی را دارد.
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>✨ ویژگی‌های کلیدی</h2>
+            <p>
+                <span class="tech-badge">تشخیص هوشمند فارسی</span>
+                <span class="tech-badge">ورودی صوتی</span>
+                <span class="tech-badge">تشخیص گام‌به‌گام</span>
+                <span class="tech-badge">امتیازدهی وزنی علائم</span>
+                <span class="tech-badge">تاریخچه تشخیص‌ها</span>
+                <span class="tech-badge">ارجاع به پزشک</span>
+                <span class="tech-badge">یادآور دارو</span>
+                <span class="tech-badge">بدن‌نما (Body Map)</span>
+                <span class="tech-badge">ترجمه چندزبانه</span>
+                <span class="tech-badge">ترمینال CMD</span>
+                <span class="tech-badge">بارگذاری گروهی بیماری‌ها</span>
+                <span class="tech-badge">احراز هویت و نقش‌ها</span>
+                <span class="tech-badge">امنیت بالا (CSRF, Rate Limit)</span>
+                <span class="tech-badge">PWA (نصب روی موبایل)</span>
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>⚙️ تکنولوژی‌ها</h2>
+            <p>
+                <span class="tech-badge">Python + Flask</span>
+                <span class="tech-badge">SQLite</span>
+                <span class="tech-badge">HTML5 + CSS3 + JavaScript</span>
+                <span class="tech-badge">Web Speech API</span>
+                <span class="tech-badge">DeepSeek API</span>
+                <span class="tech-badge">Flask-Limiter</span>
+                <span class="tech-badge">Werkzeug Security</span>
+                <span class="tech-badge">Service Worker</span>
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>🎯 هدف پروژه</h2>
+            <p>
+                فراهم‌سازی یک ابزار کمک‌تشخیص پزشکی رایگان، فارسی‌زبان، آفلاین و
+                قابل اجرا روی سخت‌افزارهای ارزان‌قیمت برای استفاده در مناطق محروم،
+                درمانگاه‌های کوچک و حتی منازل.
+            </p>
+        </div>
+
+        <div class="section" style="text-align:center;">
+            <h2>📂 متن‌باز (Open Source)</h2>
+            <p>این پروژه تحت مجوز MIT منتشر شده و کد منبع آن روی GitHub در دسترس است.</p>
+            <a href="https://github.com/YOUR_USERNAME/medinnowhere" target="_blank" class="github-link">🔗 مشاهده در گیت‌هاب</a>
+        </div>
+
+        <div class="version">
+            🩺 MedInNowhere نسخه ۲.۱
+        </div>
+    </div>
+
+    <div class="footer">
+        ساخته‌شده با ❤️ برای آینده پزشکی دیجیتال — MedInNowhere نسخه ۲.۱
+    </div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => { navigator.serviceWorker.register('/static/service-worker.js'); });
+      }
+    </script>
+</body>
+</html>

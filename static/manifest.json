@@ -1,0 +1,21 @@
+{
+  "name": "MedInNowhere - دستیار سلامت هوشمند",
+  "short_name": "MedInNowhere",
+  "description": "پزشک در ناکجاآباد – دستیار سلامت با تشخیص فارسی، بدن‌نما و ارجاع پزشکی",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1b2a",
+  "theme_color": "#4cff8d",
+  "icons": [
+    {
+  "src": "/static/icon-192.jpg",
+  "sizes": "192x192",
+  "type": "image/jpeg"
+    },
+    {
+      "src": "/static/icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}

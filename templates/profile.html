@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedInNowhere ۲.۱ | پروفایل کاربری</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#4cff8d">
+    <style>
+        body { background: #1e1e1e; color: #e0e0e0; font-family: Tahoma; margin: 0; }
+        .navbar { background:#121212; padding:15px 30px; display:flex; justify-content:space-between; border-bottom:1px solid #444; }
+        .navbar a { color:#ccc; text-decoration:none; margin-left:20px; }
+        .navbar a:hover { color:#4cff8d; }
+        .container { max-width:600px; margin:40px auto; padding:20px; }
+        h1 { color:#4cff8d; }
+        label { display:block; margin-top:15px; color:#4cff8d; }
+        input, textarea { width:100%; padding:10px; background:#121212; border:1px solid #444; color:#0f0; margin-top:5px; }
+        button { margin-top:20px; padding:10px 30px; background:#4cff8d; color:#000; border:none; cursor:pointer; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <span style="color:#4cff8d; font-weight:bold;">🩺 MedInNowhere</span>
+        <div>
+            <a href="/">🏠 خانه</a>
+            <a href="/patient">👤 بیمار</a>
+            <a href="/profile" style="color:#4cff8d;">👤 پروفایل</a>
+            <a href="/history">📋 تاریخچه</a>
+            <a href="/reminders">⏰ یادآور دارو</a>
+            <a href="/logout">🚪 خروج</a>
+        </div>
+    </nav>
+    <div class="container">
+        <h1>پروفایل کاربری</h1>
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label>نام</label>
+            <input type="text" name="first_name" value="{{ profile.first_name if profile else '' }}">
+            <label>نام خانوادگی</label>
+            <input type="text" name="last_name" value="{{ profile.last_name if profile else '' }}">
+            <label>کد ملی</label>
+            <input type="text" name="national_id" value="{{ profile.national_id if profile else '' }}">
+            <label>شماره تلفن</label>
+            <input type="text" name="phone" value="{{ profile.phone if profile else '' }}">
+            <label>سابقه بیماری‌ها</label>
+            <textarea name="medical_history" rows="3">{{ profile.medical_history if profile else '' }}</textarea>
+            <label>قرص‌های در حال مصرف</label>
+            <textarea name="medications" rows="2">{{ profile.medications if profile else '' }}</textarea>
+            <button type="submit">ذخیره تغییرات</button>
+        </form>
+    </div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => { navigator.serviceWorker.register('/static/service-worker.js'); });
+      }
+    </script>
+</body>
+</html>

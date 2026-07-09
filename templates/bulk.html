@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedInNowhere ۲.۱ | افزودن گروهی بیماری‌ها</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#4cff8d">
+    <style>
+        body { background: #1e1e1e; color: #d4d4d4; font-family: Tahoma; margin: 0; direction: rtl; }
+        .navbar { background: #121212; padding: 15px 30px; display: flex; justify-content: space-between; border-bottom: 1px solid #444; }
+        .navbar a { color: #ccc; text-decoration: none; margin-left: 20px; }
+        .navbar a:hover { color: #4cff8d; }
+        .container { padding: 40px; }
+        h1 { color: #0f0; }
+        textarea { width: 100%; height: 400px; background: #121212; color: #0f0; border: 1px solid #444; font-family: 'Courier New', monospace; padding: 10px; resize: vertical; }
+        button { margin-top: 10px; padding: 10px 30px; background: #0f0; color: #000; border: none; font-weight: bold; cursor: pointer; }
+        #message { margin-top: 15px; color: #fff; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <span style="color:#4cff8d; font-weight:bold;">🩺 MedInNowhere</span>
+        <div>
+            <a href="/">🏠 خانه</a>
+            <a href="/terminal">💻 ترمینال</a>
+            <a href="/patient">👤 بیمار</a>
+            <a href="/translate">🌐 ترجمه</a>
+            <a href="/bulk" style="color:#4cff8d;">📥 افزودن گروهی</a>
+            <a href="/profile">👤 پروفایل</a>
+            <a href="/logout">🚪 خروج</a>
+        </div>
+    </nav>
+    <div class="container">
+        <h1>📥 افزودن گروهی بیماری‌ها</h1>
+        <p>هر خط: <code>نام | فوریت | توضیح | درمان | علامت۱,علامت۲,...</code></p>
+        <textarea id="data" placeholder="مالاریا | بالا | ... | ... | تب,لرز"></textarea>
+        <button onclick="sendBulk()">🚀 افزودن همه</button>
+        <div id="message"></div>
+    </div>
+    <script>
+        function getCsrfToken() { return document.querySelector('meta[name="csrf-token"]').getAttribute('content'); }
+        async function sendBulk() {
+            const text = document.getElementById('data').value.trim();
+            if (!text) return;
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            const diseases = lines.map(line => {
+                const parts = line.split('|').map(p => p.trim());
+                return { name: parts[0]||'', urgency: parts[1]||'کم', description: parts[2]||'', treatment: parts[3]||'', symptoms: parts[4]||'' };
+            });
+            document.getElementById('message').textContent = 'در حال افزودن...';
+            const response = await fetch('/api/bulk_add', {
+                method:'POST',
+                headers:{ 'Content-Type':'application/json', 'X-CSRF-Token': getCsrfToken() },
+                body: JSON.stringify({diseases})
+            });
+            const result = await response.json();
+            document.getElementById('message').textContent = result.message;
+        }
+    </script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => { navigator.serviceWorker.register('/static/service-worker.js'); });
+      }
+    </script>
+</body>
+</html>

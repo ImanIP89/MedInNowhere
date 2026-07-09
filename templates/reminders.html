@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedInNowhere ۲.۱ | یادآور دارو</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#4cff8d">
+    <style>
+        body { background: #1e1e1e; color: #e0e0e0; font-family: Tahoma; margin: 0; }
+        .navbar { background:#121212; padding:15px 30px; display:flex; justify-content:space-between; border-bottom:1px solid #444; }
+        .navbar a { color:#ccc; text-decoration:none; margin-left:20px; }
+        .navbar a:hover { color:#4cff8d; }
+        .container { max-width:700px; margin:40px auto; padding:20px; }
+        h1 { color:#4cff8d; }
+        .form-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 20px; }
+        input { background: #121212; border: 1px solid #444; color: #0f0; padding: 10px; flex: 1; }
+        button { background: #4cff8d; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; }
+        .reminder-card {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .reminder-card .name { color: #4cff8d; font-weight: bold; }
+        .reminder-card .time { color: #aaa; }
+        .btn-delete { background: #ff4c4c; color: #fff; border: none; padding: 5px 15px; cursor: pointer; border-radius: 5px; }
+        .btn-delete:hover { background: #e04444; }
+        #notificationStatus { margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <span style="color:#4cff8d; font-weight:bold;">🩺 MedInNowhere</span>
+        <div>
+            <a href="/">🏠 خانه</a>
+            <a href="/patient">👤 بیمار</a>
+            <a href="/reminders" style="color:#4cff8d;">⏰ یادآور دارو</a>
+            <a href="/profile">👤 پروفایل</a>
+            <a href="/history">📋 تاریخچه</a>
+            <a href="/logout">🚪 خروج</a>
+        </div>
+    </nav>
+    <div class="container">
+        <h1>⏰ یادآور دارو</h1>
+        <div id="notificationStatus">
+            <button onclick="requestNotificationPermission()" style="background:#ffa500; color:#000;">🔔 فعال‌سازی اعلان‌ها</button>
+            <span id="permStatus" style="margin-right:10px;"></span>
+        </div>
+        <div class="form-row">
+            <input type="text" id="medName" placeholder="نام دارو">
+            <input type="time" id="medTime">
+            <button onclick="addReminder()">➕ افزودن</button>
+        </div>
+        <div id="remindersList"></div>
+    </div>
+
+    <script>
+        function getCsrfToken() { return document.querySelector('meta[name="csrf-token"]').getAttribute('content'); }
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) { alert("مرورگر شما از اعلان پشتیبانی نمی‌کند."); return; }
+            Notification.requestPermission().then(perm => {
+                document.getElementById('permStatus').textContent = perm === 'granted' ? '✅ فعال' : '❌ غیرفعال';
+                if (perm === 'granted') new Notification("MedInNowhere", { body: "اعلان‌ها فعال شدند! 🎉" });
+            });
+        }
+
+        async function loadReminders() {
+            const resp = await fetch('/api/reminders');
+            const data = await resp.json();
+            const container = document.getElementById('remindersList');
+            if (data.length === 0) { container.innerHTML = '<p style="color:#aaa;">هیچ یادآوری ثبت نشده است.</p>'; return; }
+            container.innerHTML = data.map(r => `<div class="reminder-card"><div><span class="name">💊 ${r.medication_name}</span> <span class="time">🕒 ${r.reminder_time}</span></div><button class="btn-delete" onclick="deleteReminder(${r.id})">🗑️ حذف</button></div>`).join('');
+        }
+
+        async function addReminder() {
+            const name = document.getElementById('medName').value.trim();
+            const time = document.getElementById('medTime').value;
+            if (!name || !time) { alert('نام دارو و زمان را وارد کنید.'); return; }
+            const resp = await fetch('/api/reminders/add', { method:'POST', headers:{ 'Content-Type':'application/json', 'X-CSRF-Token': getCsrfToken() }, body: JSON.stringify({ medication_name: name, reminder_time: time }) });
+            if (resp.ok) { document.getElementById('medName').value = ''; document.getElementById('medTime').value = ''; loadReminders(); }
+        }
+
+        async function deleteReminder(id) {
+            if (!confirm('حذف شود؟')) return;
+            const resp = await fetch('/api/reminders/delete/' + id, { method:'POST', headers:{ 'X-CSRF-Token': getCsrfToken() } });
+            if (resp.ok) loadReminders();
+        }
+
+        function checkReminders() {
+            if (Notification.permission !== 'granted') return;
+            const now = new Date().toTimeString().slice(0,5);
+            document.querySelectorAll('.reminder-card').forEach(card => {
+                const timeElem = card.querySelector('.time');
+                if (timeElem && timeElem.textContent.includes(now)) {
+                    const name = card.querySelector('.name').textContent.replace('💊 ', '');
+                    new Notification("⏰ یادآور دارو", { body: `وقت مصرف ${name} است.` });
+                }
+            });
+        }
+
+        if (Notification.permission === 'granted') document.getElementById('permStatus').textContent = '✅ فعال';
+        else if (Notification.permission === 'denied') document.getElementById('permStatus').textContent = '❌ غیرفعال';
+
+        loadReminders();
+        setInterval(checkReminders, 30000);
+    </script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => { navigator.serviceWorker.register('/static/service-worker.js'); });
+      }
+    </script>
+</body>
+</html>
