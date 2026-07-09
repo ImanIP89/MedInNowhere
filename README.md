@@ -77,7 +77,7 @@ http://hostname.local:5000 (stable PWA connection)
 Admin: admin / admin123
 
 Doctor: doctor / doctor123
-
+```
 📂 Archived Project
 This project is the successor of MediSync (now archived).
 👉 github.com/ImanIP89/MediSync
