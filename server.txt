@@ -1,7 +1,0 @@
-MedInNowhere Server Addresses
-============================
-Local IP:  http://10.126.32.3:5000
-Hostname:  http://DESKTOP-LUICDG8.local:5000
-Localhost: http://127.0.0.1:5000
-============================
-برای اتصال پایدار PWA از Hostname استفاده کنید.
