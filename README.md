@@ -85,4 +85,4 @@ This project is the successor of MediSync (now archived).
 📄 License
 MIT License — feel free to use, modify, and share.
 
-Made with ❤️ by a future physician-engineer.
+Made with ❤️ by Iman Payandeh.
