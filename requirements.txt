@@ -1,4 +1,5 @@
 flask
-openai
+flask-socketio
 flask-limiter
 werkzeug
+openai
