@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>اتصال | MedInNowhere</title>
+    <title>اتصال | MedInNowhere ۳.۱</title>
     <style>
         body { background: #1e1e1e; color: #e0e0e0; font-family: Tahoma; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
         .box { background: #2a2a2a; padding: 30px; border-radius: 16px; text-align: center; max-width: 500px; width: 90%; }
@@ -11,10 +11,41 @@
         .link { background: #121212; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #444; font-family: monospace; word-break: break-all; }
         .link a { color: #4cff8d; text-decoration: none; }
         .badge { display: inline-block; background: #4cff8d; color: #000; padding: 3px 10px; border-radius: 20px; font-size: 12px; margin-bottom: 5px; }
+        .navbar { background:#121212; padding:15px 30px; display:flex; justify-content:space-between; border-bottom:1px solid #444; width:100%; position:fixed; top:0; }
+        .navbar a { color:#ccc; text-decoration:none; margin-left:20px; }
+        .navbar a:hover { color:#4cff8d; }
     </style>
 </head>
 <body>
-    <div class="box">
+    <nav class="navbar">
+        <span style="color:#4cff8d; font-weight:bold;">🩺 MedInNowhere ۳.۱</span>
+        <div>
+            <a href="/">🏠 خانه</a>
+            {% if session.user_id %}
+                {% if session.user_role in ('doctor', 'admin') %}
+                    <a href="/terminal">💻 ترمینال</a>
+                    <a href="/referrals">📋 ارجاع‌ها</a>
+                {% endif %}
+                <a href="/patient">👤 بیمار</a>
+                <a href="/xray">🦴 تشخیص تصویری</a>
+                <a href="/translate">🌐 ترجمه</a>
+                {% if session.user_role == 'admin' %}
+                    <a href="/bulk">📥 افزودن گروهی</a>
+                {% endif %}
+                <a href="/chat">💬 چت</a>
+                <a href="/profile">👤 پروفایل</a>
+                <a href="/history">📋 تاریخچه</a>
+                <a href="/reminders">⏰ یادآور دارو</a>
+                <a href="/connect" style="color:#4cff8d;">📡 اتصال</a>
+                <a href="/logout">🚪 خروج</a>
+            {% else %}
+                <a href="/login">🔑 ورود</a>
+                <a href="/register">📝 ثبت‌نام</a>
+                <a href="/connect" style="color:#4cff8d;">📡 اتصال</a>
+            {% endif %}
+        </div>
+    </nav>
+    <div class="box" style="margin-top:80px;">
         <h2>🩺 MedInNowhere</h2>
         <p>آدرس‌های اتصال به سرور</p>
         

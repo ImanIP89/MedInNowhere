@@ -6,10 +6,12 @@ import os
 import secrets
 import json
 import socket
+import re
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -24,7 +26,6 @@ limiter = Limiter(
     default_limits=["200 per day", "50 per hour"]
 )
 
-# کلید DeepSeek خود را اینجا بگذارید
 DEEPSEEK_API_KEY = "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 def get_db():
@@ -144,6 +145,67 @@ def save_diagnosis(user_id, symptoms_text, result, method='normal'):
     conn.commit()
     conn.close()
 
+# ---------- الگوهای SQL Injection ----------
+SQL_INJECTION_PATTERNS = [
+    r"(\bUNION\b|\bSELECT\b|\bINSERT\b|\bDELETE\b|\bDROP\b|\bUPDATE\b).*(\bFROM\b|\bINTO\b)",
+    r"'--",
+    r";--",
+    r"/\*.*\*/",
+    r"OR\s+1=1",
+    r"OR\s+'1'='1'",
+    r"xp_cmdshell",
+    r"exec\s*\(",
+]
+
+def detect_sql_injection(text):
+    for pattern in SQL_INJECTION_PATTERNS:
+        if re.search(pattern, text, re.IGNORECASE):
+            return True
+    return False
+
+def log_security_alert(alert_type, ip_address=None, username=None, details=""):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('INSERT INTO security_alerts (alert_type, ip_address, username, details) VALUES (?, ?, ?, ?)',
+                (alert_type, ip_address or request.remote_addr, username, details))
+    conn.commit()
+    conn.close()
+
+def get_recent_failed_logins(ip_address=None, username=None, minutes=10):
+    conn = get_db()
+    cur = conn.cursor()
+    cutoff = (datetime.now() - timedelta(minutes=minutes)).strftime('%Y-%m-%d %H:%M:%S')
+    query = 'SELECT COUNT(*) FROM security_alerts WHERE alert_type = ? AND created_at > ?'
+    params = ['brute_force', cutoff]
+    if ip_address:
+        query += ' AND ip_address = ?'
+        params.append(ip_address)
+    elif username:
+        query += ' AND username = ?'
+        params.append(username)
+    cur.execute(query, params)
+    count = cur.fetchone()[0]
+    conn.close()
+    return count
+
+def check_request_security():
+    ip = request.remote_addr
+    recent_alerts = get_recent_failed_logins(ip_address=ip, minutes=1)
+    if recent_alerts > 20:
+        log_security_alert('rate_limit', ip_address=ip, details=f'{recent_alerts} requests in 1 minute')
+        return False
+    for key, value in request.args.items():
+        if detect_sql_injection(value):
+            log_security_alert('sql_injection', ip_address=ip, details=f'GET param: {key}={value}')
+            return False
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        for key, value in data.items():
+            if isinstance(value, str) and detect_sql_injection(value):
+                log_security_alert('sql_injection', ip_address=ip, details=f'JSON field: {key}={value}')
+                return False
+    return True
+
 # ---------- CSRF ----------
 def generate_csrf_token():
     if '_csrf_token' not in session:
@@ -156,6 +218,7 @@ def csrf_required(f):
         if request.method in ['POST', 'PUT', 'DELETE']:
             token = request.form.get('csrf_token') or request.headers.get('X-CSRF-Token')
             if not token or token != session.get('_csrf_token'):
+                log_security_alert('csrf_fail', ip_address=request.remote_addr, username=session.get('username'))
                 abort(403)
         return f(*args, **kwargs)
     return decorated
@@ -220,6 +283,7 @@ def print_server_info():
         f.write(f"برای اتصال پایدار PWA از Hostname استفاده کنید.\n")
 
 # ---------- Routes ----------
+# ---------- Routes ----------
 @app.route('/')
 def welcome():
     return render_template('welcome.html')
@@ -277,20 +341,26 @@ def reminders_page():
 def about():
     return render_template('about.html')
 
-@app.route('/chat/<int:referral_id>')
+@app.route('/chat')
 @login_required
-def chat(referral_id):
-    # بررسی دسترسی: بیمار یا پزشک مربوطه
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute('SELECT patient_id, doctor_id FROM referrals WHERE id = ?', (referral_id,))
-    ref = cur.fetchone()
-    conn.close()
-    if not ref:
-        return "ارجاع یافت نشد", 404
-    if session['user_id'] != ref['patient_id'] and session['user_id'] != ref['doctor_id'] and session.get('user_role') != 'admin':
-        return "دسترسی غیرمجاز", 403
-    return render_template('chat.html', referral_id=referral_id, room=f"ref_{referral_id}")
+def chat_page():
+    return render_template('chat.html')
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    return render_template('dashboard.html')
+
+@app.route('/security')
+@login_required
+@role_required('admin')
+def security_dashboard():
+    return render_template('security.html')
+
+@app.route('/prescriptions')
+@login_required
+def prescriptions_page():
+    return render_template('prescriptions.html')
 
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
@@ -342,6 +412,7 @@ def login():
             session['user_role'] = user['role']
             session['full_name'] = user['full_name']
             return redirect(url_for('welcome'))
+        log_security_alert('brute_force', username=username, details='Failed login attempt')
         return render_template('login.html', error='نام کاربری یا رمز عبور نادرست است.')
     return render_template('login.html')
 
@@ -371,7 +442,7 @@ def logout():
     session.clear()
     return redirect(url_for('welcome'))
 
-# ---------- API ها ----------
+# ---------- API ----------
 @app.route('/api/diseases')
 def api_diseases():
     conn = get_db()
@@ -438,10 +509,17 @@ def api_command():
             else:
                 conn = get_db()
                 cursor = conn.cursor()
-                cursor.execute('SELECT name FROM symptoms')
-                all_symptoms = [row['name'] for row in cursor.fetchall()]
+                cursor.execute('SELECT name, name_en FROM symptoms')
+                all_symptoms = cursor.fetchall()
                 conn.close()
-                symptoms_list = [sym for sym in all_symptoms if sym in raw_text]
+                symptoms_list = []
+                for row in all_symptoms:
+                    persian_name = row['name']
+                    english_name = row['name_en'] or ''
+                    if persian_name in raw_text:
+                        symptoms_list.append(persian_name)
+                    elif english_name and english_name.lower() in raw_text.lower():
+                        symptoms_list.append(persian_name)
 
             if not symptoms_list:
                 response["output"] = "❌ هیچ علامت قابل تشخیصی در جمله پیدا نشد."
@@ -574,13 +652,36 @@ def patient_diagnose():
 
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT name FROM symptoms')
-    all_symptoms = [row['name'] for row in cursor.fetchall()]
+    cursor.execute('SELECT name, name_en FROM symptoms')
+    all_symptoms = cursor.fetchall()
     conn.close()
 
-    found_symptoms = [sym for sym in all_symptoms if sym in raw_text]
+    found_symptoms = []
+    for row in all_symptoms:
+        persian_name = row['name']
+        english_name = row['name_en'] or ''
+        if persian_name in raw_text:
+            found_symptoms.append(persian_name)
+        elif english_name and english_name.lower() in raw_text.lower():
+            found_symptoms.append(persian_name)
+
     if not found_symptoms:
-        return jsonify({"error": "متأسفانه هیچ علامتی در متن شما پیدا نشد."})
+        return jsonify({"error": "متأسفانه هیچ علامتی در متن شما پیدا نشد. لطفاً واضح‌تر توضیح دهید."})
+
+    # ---------- Red Flags ----------
+    red_flags_found = []
+    conn = get_db()
+    cursor = conn.cursor()
+    for symptom in found_symptoms:
+        cursor.execute('SELECT urgency_message, severity FROM red_flags WHERE symptom_name = ?', (symptom,))
+        flag = cursor.fetchone()
+        if flag:
+            red_flags_found.append({
+                "symptom": symptom,
+                "message": flag['urgency_message'],
+                "severity": flag['severity']
+            })
+    conn.close()
 
     conn = get_db()
     cursor = conn.cursor()
@@ -601,7 +702,7 @@ def patient_diagnose():
     conn.close()
 
     if not rows:
-        return jsonify({"error": "بیماری منطبق پیدا نشد."})
+        return jsonify({"error": "بیماری منطبق با علائم شما یافت نشد. لطفاً با پزشک مشورت کنید."})
 
     candidates = []
     for row in rows:
@@ -616,8 +717,13 @@ def patient_diagnose():
     result_json = json.dumps(candidates, ensure_ascii=False)
     save_diagnosis(session['user_id'], raw_text, result_json, method='normal')
 
-    return jsonify({"candidates": candidates, "symptoms_found": found_symptoms})
+    return jsonify({
+        "candidates": candidates,
+        "symptoms_found": found_symptoms,
+        "red_flags": red_flags_found
+    })
 
+# ---------- Guided Diagnosis ----------
 @app.route('/api/guided_start', methods=['POST'])
 @login_required
 @csrf_required
@@ -629,10 +735,18 @@ def guided_start():
 
     conn = get_db()
     cur = conn.cursor()
-    cur.execute('SELECT name FROM symptoms')
-    all_symptoms = [r['name'] for r in cur.fetchall()]
+    cur.execute('SELECT name, name_en FROM symptoms')
+    all_symptoms = cur.fetchall()
     conn.close()
-    found = [s for s in all_symptoms if s in raw_text]
+    found = []
+    for row in all_symptoms:
+        persian_name = row['name']
+        english_name = row['name_en'] or ''
+        if persian_name in raw_text:
+            found.append(persian_name)
+        elif english_name and english_name.lower() in raw_text.lower():
+            found.append(persian_name)
+
     if not found:
         return jsonify({"error": "هیچ علامتی شناسایی نشد."})
 
@@ -728,7 +842,7 @@ def guided_answer():
             session.pop('guided_candidates', None)
             return jsonify({"result": result_text})
 
-# ----- History, Referrals, Reminders, Bulk, Translate, AI -----
+# ---------- History, Referrals, Reminders, Bulk, Translate, AI ----------
 @app.route('/api/history')
 @login_required
 def get_history():
@@ -792,11 +906,11 @@ def get_referrals():
     conn = get_db()
     cursor = conn.cursor()
     if session['user_role'] == 'admin':
-        cursor.execute('''SELECT r.id, r.symptoms_text, r.diagnosis_text, r.doctor_note, r.status, r.created_at,
+        cursor.execute('''SELECT r.id, r.patient_id, r.symptoms_text, r.diagnosis_text, r.doctor_note, r.status, r.created_at,
                                  u.full_name as patient_name
                           FROM referrals r JOIN users u ON r.patient_id = u.id ORDER BY r.created_at DESC''')
     else:
-        cursor.execute('''SELECT r.id, r.symptoms_text, r.diagnosis_text, r.doctor_note, r.status, r.created_at,
+        cursor.execute('''SELECT r.id, r.patient_id, r.symptoms_text, r.diagnosis_text, r.doctor_note, r.status, r.created_at,
                                  u.full_name as patient_name
                           FROM referrals r JOIN users u ON r.patient_id = u.id
                           WHERE r.doctor_id = ? ORDER BY r.created_at DESC''', (session['user_id'],))
@@ -804,9 +918,16 @@ def get_referrals():
     conn.close()
     referrals = []
     for row in rows:
-        referrals.append({"id": row["id"], "patient_name": row["patient_name"], "symptoms_text": row["symptoms_text"],
-                         "diagnosis_text": row["diagnosis_text"], "doctor_note": row["doctor_note"], "status": row["status"],
-                         "created_at": row["created_at"]})
+        referrals.append({
+            "id": row["id"],
+            "patient_id": row["patient_id"],
+            "patient_name": row["patient_name"],
+            "symptoms_text": row["symptoms_text"],
+            "diagnosis_text": row["diagnosis_text"],
+            "doctor_note": row["doctor_note"],
+            "status": row["status"],
+            "created_at": row["created_at"]
+        })
     return jsonify(referrals)
 
 @app.route('/api/referrals/<int:referral_id>/note', methods=['POST'])
@@ -891,13 +1012,23 @@ def api_bulk_add():
         cursor.execute('INSERT INTO diseases (name, description, treatment, urgency) VALUES (?,?,?,?)',
                        (name, desc, treat, urgency))
         disease_id = cursor.lastrowid
-        symptom_names = [s.strip() for s in symptoms_str.split(',') if s.strip()]
-        for sym in symptom_names:
-            cursor.execute('INSERT OR IGNORE INTO symptoms (name) VALUES (?)', (sym,))
-            cursor.execute('SELECT id FROM symptoms WHERE name = ?', (sym,))
+        symptom_parts = [s.strip() for s in symptoms_str.split(',') if s.strip()]
+        for part in symptom_parts:
+            if ':' in part:
+                sym_name, weight_str = part.split(':', 1)
+                sym_name = sym_name.strip()
+                try:
+                    weight = int(weight_str.strip())
+                except:
+                    weight = 1
+            else:
+                sym_name = part
+                weight = 1
+            cursor.execute('INSERT OR IGNORE INTO symptoms (name) VALUES (?)', (sym_name,))
+            cursor.execute('SELECT id FROM symptoms WHERE name = ?', (sym_name,))
             sym_id = cursor.fetchone()[0]
-            cursor.execute('INSERT OR IGNORE INTO disease_symptoms (disease_id, symptom_id) VALUES (?,?)',
-                           (disease_id, sym_id))
+            cursor.execute('INSERT OR IGNORE INTO disease_symptoms (disease_id, symptom_id, weight) VALUES (?,?,?)',
+                           (disease_id, sym_id, weight))
         added += 1
     conn.commit()
     conn.close()
@@ -922,19 +1053,235 @@ def ai_ask():
     answer = ask_deepseek(question)
     return jsonify({"answer": answer})
 
+# ---------- Dashboard APIs ----------
+@app.route('/api/dashboard/stats')
+@login_required
+def dashboard_stats():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT COUNT(*) as total FROM diagnosis_history WHERE user_id = ?', (session['user_id'],))
+    total_diagnoses = cursor.fetchone()['total']
+    
+    cursor.execute('SELECT COUNT(*) as total FROM diagnosis_history WHERE user_id = ? AND created_at >= datetime("now", "-30 days")', (session['user_id'],))
+    recent_diagnoses = cursor.fetchone()['total']
+    
+    cursor.execute('SELECT result FROM diagnosis_history WHERE user_id = ?', (session['user_id'],))
+    rows = cursor.fetchall()
+    
+    disease_freq = {}
+    urgency_counts = {'کم': 0, 'متوسط': 0, 'بالا': 0}
+    for row in rows:
+        try:
+            candidates = json.loads(row['result'])
+            for c in candidates:
+                name = c['name']
+                disease_freq[name] = disease_freq.get(name, 0) + 1
+                urgency = c.get('urgency', 'کم')
+                urgency_counts[urgency] = urgency_counts.get(urgency, 0) + 1
+        except:
+            pass
+    
+    top_diseases = sorted(disease_freq.items(), key=lambda x: x[1], reverse=True)[:5]
+    
+    monthly_diagnoses = []
+    for i in range(5, -1, -1):
+        cursor.execute('''
+            SELECT COUNT(*) as total FROM diagnosis_history
+            WHERE user_id = ? AND strftime("%Y-%m", created_at) = strftime("%Y-%m", datetime("now", ?))
+        ''', (session['user_id'], f'-{i} months'))
+        count = cursor.fetchone()['total']
+        month = (datetime.now() - timedelta(days=30*i)).strftime('%Y-%m')
+        monthly_diagnoses.append({"month": month, "count": count})
+    
+    risk_scores = calculate_risk_scores()
+    
+    conn.close()
+    
+    return jsonify({
+        "total_diagnoses": total_diagnoses,
+        "recent_diagnoses": recent_diagnoses,
+        "top_diseases": [{"name": d, "count": c} for d, c in top_diseases],
+        "urgency_distribution": urgency_counts,
+        "monthly_diagnoses": monthly_diagnoses,
+        "risk_scores": risk_scores
+    })
+
+def calculate_risk_scores():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM user_profiles WHERE user_id = ?', (session['user_id'],))
+    profile = cursor.fetchone()
+    conn.close()
+    
+    risks = {"diabetes": 0, "hypertension": 0, "osteoarthritis": 0, "cardiovascular": 0}
+    
+    if not profile:
+        return risks
+    
+    age_estimate = 45
+    medical_history = (profile['medical_history'] or '').lower()
+    medications = (profile['medications'] or '').lower()
+    
+    diabetes_risk = 5
+    if 'دیابت' in medical_history or 'قند' in medical_history: diabetes_risk += 30
+    if 'متفورمین' in medications or 'انسولین' in medications: diabetes_risk += 25
+    if age_estimate > 45: diabetes_risk += 10
+    risks['diabetes'] = min(diabetes_risk, 95)
+    
+    bp_risk = 10
+    if 'فشار خون' in medical_history or 'پرفشاری' in medical_history: bp_risk += 35
+    if 'لسارتان' in medications or 'آملودیپین' in medications: bp_risk += 25
+    if age_estimate > 50: bp_risk += 10
+    risks['hypertension'] = min(bp_risk, 95)
+    
+    oa_risk = 5
+    if 'آرتروز' in medical_history or 'زانو' in medical_history or 'کمر' in medical_history: oa_risk += 30
+    if 'استئوآرتریت' in medical_history or 'درد مفاصل' in medical_history: oa_risk += 25
+    if age_estimate > 50: oa_risk += 15
+    risks['osteoarthritis'] = min(oa_risk, 95)
+    
+    cv_risk = 5
+    if 'قلب' in medical_history or 'سکته' in medical_history: cv_risk += 35
+    if 'کلسترول' in medications or 'آتورواستاتین' in medications: cv_risk += 20
+    if 'دیابت' in medical_history: cv_risk += 15
+    if age_estimate > 50: cv_risk += 10
+    risks['cardiovascular'] = min(cv_risk, 95)
+    
+    return risks
+
+# ---------- Security APIs ----------
+@app.route('/api/security/alerts')
+@login_required
+@role_required('admin')
+def get_security_alerts():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM security_alerts ORDER BY created_at DESC LIMIT 100')
+    alerts = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return jsonify(alerts)
+
+# ---------- Chat APIs ----------
+@app.route('/api/chat/search/<username>')
+@login_required
+def search_user(username):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, username, full_name, role FROM users WHERE username LIKE ? AND id != ?',
+                   (f'%{username}%', session['user_id']))
+    users = [{"id": r["id"], "username": r["username"], "full_name": r["full_name"], "role": r["role"]}
+             for r in cursor.fetchall()]
+    conn.close()
+    return jsonify(users)
+
+@app.route('/api/chat/messages/<username>')
+@login_required
+def get_chat_messages(username):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT cm.id, cm.sender_id, cm.message, cm.created_at, u.username as sender_username
+        FROM chat_messages cm
+        JOIN users u ON cm.sender_id = u.id
+        WHERE (cm.sender_id = ? AND cm.receiver_username = ?)
+           OR (cm.receiver_username = ? AND cm.sender_id = (SELECT id FROM users WHERE username = ?))
+        ORDER BY cm.created_at ASC
+    ''', (session['user_id'], username, session['username'], username))
+    messages = [{"id": r["id"], "sender_id": r["sender_id"], "sender_username": r["sender_username"],
+                 "message": r["message"], "created_at": r["created_at"]} for r in cursor.fetchall()]
+    conn.close()
+    return jsonify(messages)
+
+# ---------- e-Prescription APIs ----------
+@app.route('/api/prescriptions')
+@login_required
+def get_prescriptions():
+    conn = get_db()
+    cursor = conn.cursor()
+    if session['user_role'] in ('doctor', 'admin'):
+        cursor.execute('''
+            SELECT p.id, p.medication_name, p.dosage, p.instructions, p.status, p.created_at,
+                   u.full_name as patient_name
+            FROM prescriptions p
+            JOIN users u ON p.patient_id = u.id
+            WHERE p.doctor_id = ?
+            ORDER BY p.created_at DESC
+        ''', (session['user_id'],))
+    else:
+        cursor.execute('''
+            SELECT p.id, p.medication_name, p.dosage, p.instructions, p.status, p.created_at,
+                   (SELECT full_name FROM users WHERE id = p.doctor_id) as doctor_name
+            FROM prescriptions p
+            WHERE p.patient_id = ?
+            ORDER BY p.created_at DESC
+        ''', (session['user_id'],))
+    rows = cursor.fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+@app.route('/api/prescriptions/add', methods=['POST'])
+@login_required
+@role_required('doctor', 'admin')
+@csrf_required
+def add_prescription():
+    data = request.get_json()
+    patient_id = data.get('patient_id')
+    medication_name = data.get('medication_name', '').strip()
+    dosage = data.get('dosage', '').strip()
+    instructions = data.get('instructions', '').strip()
+    
+    if not patient_id or not medication_name:
+        return jsonify({"error": "بیمار و نام دارو الزامی است."}), 400
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO prescriptions (patient_id, doctor_id, medication_name, dosage, instructions) VALUES (?, ?, ?, ?, ?)',
+                   (patient_id, session['user_id'], medication_name, dosage, instructions))
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "نسخه ثبت شد."})
+
+@app.route('/api/prescriptions/deactivate/<int:prescription_id>', methods=['POST'])
+@login_required
+@role_required('doctor', 'admin')
+@csrf_required
+def deactivate_prescription(prescription_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE prescriptions SET status = ? WHERE id = ? AND doctor_id = ?',
+                   ('inactive', prescription_id, session['user_id']))
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "نسخه غیرفعال شد."})
+
 # ---------- SocketIO Events ----------
 @socketio.on('join')
 def handle_join(data):
-    room = data['room']
-    join_room(room)
-    send(f'{session.get("username", "ناشناس")} وارد شد.', room=room)
+    username = data.get('username', '')
+    if username:
+        room = f"chat_{min(session['username'], username)}_{max(session['username'], username)}"
+        join_room(room)
+        session['current_room'] = room
+        session['chat_with'] = username
+        send(f'{session.get("username", "ناشناس")} وارد چت شد.', room=room)
 
 @socketio.on('message')
 def handle_message(data):
-    room = data['room']
-    msg = data['msg']
-    username = session.get('username', 'ناشناس')
-    send(f'{username}: {msg}', room=room)
+    msg = data.get('msg', '').strip()
+    receiver = session.get('chat_with', '')
+    room = session.get('current_room', '')
+    sender_username = session.get('username', 'ناشناس')
+    
+    if msg and receiver and room:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute('INSERT INTO chat_messages (sender_id, receiver_username, message) VALUES (?, ?, ?)',
+                    (session['user_id'], receiver, msg))
+        conn.commit()
+        conn.close()
+        send(f'{sender_username}: {msg}', room=room)
 
 if __name__ == '__main__':
     print_server_info()

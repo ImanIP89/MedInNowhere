@@ -2,36 +2,123 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>چت پزشک و بیمار | MedInNowhere</title>
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>چت | MedInNowhere ۳.۱</title>
     <style>
-        body { background:#1e1e1e; color:#e0e0e0; font-family:Tahoma; margin:20px; }
-        #messages { height:300px; overflow-y:auto; background:#121212; padding:10px; border-radius:10px; margin-bottom:10px; }
-        input { width:80%; padding:10px; background:#121212; color:#0f0; border:1px solid #444; }
-        button { padding:10px 20px; background:#4cff8d; color:#000; border:none; cursor:pointer; }
+        body { background:#1e1e1e; color:#e0e0e0; font-family:Tahoma; margin:0; display:flex; height:100vh; }
+        .sidebar { width:250px; background:#121212; padding:20px; border-left:1px solid #444; overflow-y:auto; }
+        .sidebar input { width:100%; padding:10px; background:#2a2a2a; border:1px solid #444; color:#0f0; border-radius:8px; }
+        .sidebar .user-item { padding:10px; background:#2a2a2a; border-radius:8px; margin:5px 0; cursor:pointer; }
+        .sidebar .user-item:hover { background:#3a3a3a; }
+        .chat-area { flex:1; display:flex; flex-direction:column; }
+        .chat-header { padding:15px; background:#121212; border-bottom:1px solid #444; color:#4cff8d; }
+        .messages { flex:1; overflow-y:auto; padding:15px; }
+        .msg { margin:5px 0; padding:8px 12px; border-radius:10px; max-width:70%; }
+        .msg.sent { background:#4cff8d; color:#000; margin-right:auto; }
+        .msg.received { background:#2a2a2a; margin-left:auto; text-align:left; }
+        .msg .sender { font-size:11px; color:#aaa; margin-bottom:3px; }
+        .input-area { display:flex; padding:15px; background:#121212; border-top:1px solid #444; }
+        .input-area input { flex:1; padding:10px; background:#2a2a2a; border:1px solid #444; color:#0f0; border-radius:8px; }
+        .input-area button { padding:10px 20px; background:#4cff8d; color:#000; border:none; border-radius:8px; margin-right:10px; cursor:pointer; }
+        .active-chat { background:#4cff8d !important; color:#000; }
+        .navbar { background:#121212; padding:10px 20px; display:flex; justify-content:space-between; border-bottom:1px solid #444; position:fixed; top:0; width:100%; z-index:10; }
+        .navbar a { color:#ccc; text-decoration:none; margin-left:15px; }
+        .navbar a:hover { color:#4cff8d; }
     </style>
 </head>
 <body>
-    <h2>💬 چت زنده – ارجاع #{{ referral_id }}</h2>
-    <div id="messages"></div>
-    <input id="msgInput" placeholder="پیام خود را بنویسید...">
-    <button onclick="sendMsg()">📨 ارسال</button>
+    <nav class="navbar">
+        <span style="color:#4cff8d; font-weight:bold;">🩺 MedInNowhere ۳.۱</span>
+        <div>
+            <a href="/">🏠 خانه</a>
+            {% if session.user_role in ('doctor', 'admin') %}
+                <a href="/terminal">💻 ترمینال</a>
+                <a href="/referrals">📋 ارجاع‌ها</a>
+            {% endif %}
+            <a href="/patient">👤 بیمار</a>
+            <a href="/chat" style="color:#4cff8d;">💬 چت</a>
+            <a href="/profile">👤 پروفایل</a>
+            <a href="/logout">🚪 خروج</a>
+        </div>
+    </nav>
+    <div style="display:flex; width:100%; margin-top:50px;">
+        <div class="sidebar">
+            <h3 style="color:#4cff8d;">👤 کاربران</h3>
+            <input type="text" id="searchInput" placeholder="🔍 جستجوی کاربر..." oninput="searchUsers()">
+            <div id="userList"></div>
+        </div>
+        <div class="chat-area">
+            <div class="chat-header" id="chatHeader">👈 یک کاربر انتخاب کنید</div>
+            <div class="messages" id="messages"></div>
+            <div class="input-area">
+                <input type="text" id="msgInput" placeholder="پیام خود را بنویسید..." disabled>
+                <button id="sendBtn" disabled onclick="sendMsg()">📨 ارسال</button>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
         const socket = io();
-        const room = "{{ room }}";
-        socket.emit('join', { room: room });
+        let currentChatUser = null;
+
+        async function searchUsers() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) { document.getElementById('userList').innerHTML = ''; return; }
+            const resp = await fetch('/api/chat/search/' + query);
+            const users = await resp.json();
+            const list = document.getElementById('userList');
+            list.innerHTML = users.map(u => `
+                <div class="user-item" onclick="selectUser('${u.username}', '${u.full_name||u.username}')">
+                    ${u.full_name||u.username} <span style="color:#aaa;font-size:12px;">(${u.role})</span>
+                </div>
+            `).join('');
+        }
+
+        async function selectUser(username, displayName) {
+            currentChatUser = username;
+            document.getElementById('chatHeader').textContent = `💬 چت با ${displayName}`;
+            document.getElementById('msgInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            
+            document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active-chat'));
+            event.target.closest('.user-item').classList.add('active-chat');
+            
+            socket.emit('join', { username: username });
+            
+            const resp = await fetch('/api/chat/messages/' + username);
+            const messages = await resp.json();
+            const msgDiv = document.getElementById('messages');
+            msgDiv.innerHTML = '';
+            messages.forEach(m => {
+                const cls = m.sender_username === '{{ session.username }}' ? 'sent' : 'received';
+                msgDiv.innerHTML += `<div class="msg ${cls}"><div class="sender">${m.sender_username}</div>${m.message}</div>`;
+            });
+            msgDiv.scrollTop = msgDiv.scrollHeight;
+        }
 
         socket.on('message', (data) => {
             const msgDiv = document.getElementById('messages');
-            msgDiv.innerHTML += `<p>${data}</p>`;
+            const parts = data.split(': ');
+            const sender = parts[0];
+            const text = parts.slice(1).join(': ');
+            const cls = sender === '{{ session.username }}' ? 'sent' : 'received';
+            msgDiv.innerHTML += `<div class="msg ${cls}"><div class="sender">${sender}</div>${text}</div>`;
+            msgDiv.scrollTop = msgDiv.scrollHeight;
         });
 
         function sendMsg() {
             const input = document.getElementById('msgInput');
-            socket.emit('message', { room: room, msg: input.value });
-            input.value = '';
+            const msg = input.value.trim();
+            if (msg && currentChatUser) {
+                socket.emit('message', { msg: msg });
+                input.value = '';
+            }
         }
+
+        document.getElementById('msgInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMsg();
+        });
     </script>
 </body>
 </html>

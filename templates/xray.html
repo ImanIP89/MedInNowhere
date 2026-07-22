@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedInNowhere ۳.۰ | تشخیص تصویری</title>
+    <title>MedInNowhere ۳.۱ | تشخیص تصویری</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#4cff8d">
     <style>
@@ -16,9 +16,34 @@
         button { background: #4cff8d; color: #000; border: none; padding: 12px 25px; font-size: 18px; cursor: pointer; border-radius: 10px; font-weight: bold; }
         #result { margin-top: 20px; padding: 15px; background: #2a2a2a; border-radius: 10px; display: none; }
         .progress { color: #ffa500; margin: 10px 0; }
+        .navbar { background:#121212; padding:15px 30px; display:flex; justify-content:space-between; border-bottom:1px solid #444; width:100%; }
+        .navbar a { color:#ccc; text-decoration:none; margin-left:20px; }
+        .navbar a:hover { color:#4cff8d; }
     </style>
 </head>
 <body>
+    <nav class="navbar">
+        <span style="color:#4cff8d; font-weight:bold;">🩺 MedInNowhere ۳.۱</span>
+        <div>
+            <a href="/">🏠 خانه</a>
+            {% if session.user_role in ('doctor', 'admin') %}
+                <a href="/terminal">💻 ترمینال</a>
+                <a href="/referrals">📋 ارجاع‌ها</a>
+            {% endif %}
+            <a href="/patient">👤 بیمار</a>
+            <a href="/xray" style="color:#4cff8d;">🦴 تشخیص تصویری</a>
+            <a href="/translate">🌐 ترجمه</a>
+            {% if session.user_role == 'admin' %}
+                <a href="/bulk">📥 افزودن گروهی</a>
+            {% endif %}
+            <a href="/chat">💬 چت</a>
+            <a href="/profile">👤 پروفایل</a>
+            <a href="/history">📋 تاریخچه</a>
+            <a href="/reminders">⏰ یادآور دارو</a>
+            <a href="/connect">📡 اتصال</a>
+            <a href="/logout">🚪 خروج</a>
+        </div>
+    </nav>
     <div class="container">
         <h1>🦴 تشخیص تصویری ارتوپدی</h1>
         <p>عکس رادیولوژی (مچ دست، زانو، شانه) را آپلود کنید.</p>
@@ -30,10 +55,8 @@
         <p style="margin-top:20px; font-size:12px; color:#f44;">⚠️ این ابزار صرفاً آزمایشی است و تشخیص آن قطعی نیست. حتماً به پزشک مراجعه کنید.</p>
     </div>
 
-    <!-- TensorFlow.js -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
-
     <script>
         const fileInput = document.getElementById('xrayInput');
         const preview = document.getElementById('preview');
@@ -53,28 +76,20 @@
         });
 
         async function analyze() {
-            if (!fileInput.files[0]) {
-                alert('لطفاً یک عکس انتخاب کنید.');
-                return;
-            }
+            if (!fileInput.files[0]) { alert('لطفاً یک عکس انتخاب کنید.'); return; }
             progress.textContent = '⏳ در حال بارگذاری مدل و تحلیل...';
             resultDiv.style.display = 'none';
 
             try {
-                // بارگذاری مدل MobileNet
                 const model = await mobilenet.load();
-                
-                // تحلیل تصویر
                 const img = document.getElementById('preview');
                 const predictions = await model.classify(img);
                 
-                // نمایش نتایج (۳ حدس برتر)
                 let html = '<h3 style="color:#4cff8d;">نتایج تحلیل:</h3>';
                 predictions.slice(0, 3).forEach(p => {
                     html += `<p>🔹 ${p.className}: <strong>${(p.probability * 100).toFixed(1)}%</strong></p>`;
                 });
                 
-                // بررسی ساده: اگر کلاس‌های مرتبط با شکستگی یا غیرنرمال بودن دید
                 const abnormalKeywords = ['fracture', 'broken', 'abnormal', 'lesion', 'tumor'];
                 const isAbnormal = predictions.some(p => 
                     abnormalKeywords.some(kw => p.className.toLowerCase().includes(kw)) && p.probability > 0.3
@@ -94,6 +109,11 @@
             }
             progress.textContent = '';
         }
+    </script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => { navigator.serviceWorker.register('/static/service-worker.js'); });
+      }
     </script>
 </body>
 </html>

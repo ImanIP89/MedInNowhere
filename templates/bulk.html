@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedInNowhere ۲.۱ | افزودن گروهی بیماری‌ها</title>
+    <title>MedInNowhere ۳.۱ | افزودن گروهی بیماری‌ها</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#4cff8d">
     <style>
@@ -12,30 +12,68 @@
         .navbar { background: #121212; padding: 15px 30px; display: flex; justify-content: space-between; border-bottom: 1px solid #444; }
         .navbar a { color: #ccc; text-decoration: none; margin-left: 20px; }
         .navbar a:hover { color: #4cff8d; }
-        .container { padding: 40px; }
+        .container { padding: 40px; max-width: 900px; margin: 0 auto; }
         h1 { color: #0f0; }
-        textarea { width: 100%; height: 400px; background: #121212; color: #0f0; border: 1px solid #444; font-family: 'Courier New', monospace; padding: 10px; resize: vertical; }
-        button { margin-top: 10px; padding: 10px 30px; background: #0f0; color: #000; border: none; font-weight: bold; cursor: pointer; }
+        .info-box {
+            background: #1a2a1a;
+            border: 1px solid #4cff8d;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .info-box h3 { color: #4cff8d; margin-bottom: 10px; }
+        .info-box p { margin: 5px 0; }
+        .info-box code {
+            background: #121212;
+            color: #0f0;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        textarea { width: 100%; height: 400px; background: #121212; color: #0f0; border: 1px solid #444; font-family: 'Courier New', monospace; padding: 10px; resize: vertical; border-radius: 10px; }
+        button { margin-top: 10px; padding: 10px 30px; background: #0f0; color: #000; border: none; font-weight: bold; cursor: pointer; border-radius: 10px; }
         #message { margin-top: 15px; color: #fff; }
     </style>
 </head>
 <body>
     <nav class="navbar">
-        <span style="color:#4cff8d; font-weight:bold;">🩺 MedInNowhere</span>
+        <span style="color:#4cff8d; font-weight:bold;">🩺 MedInNowhere ۳.۱</span>
         <div>
             <a href="/">🏠 خانه</a>
-            <a href="/terminal">💻 ترمینال</a>
+            {% if session.user_role in ('doctor', 'admin') %}
+                <a href="/terminal">💻 ترمینال</a>
+                <a href="/referrals">📋 ارجاع‌ها</a>
+            {% endif %}
             <a href="/patient">👤 بیمار</a>
+            <a href="/xray">🦴 تشخیص تصویری</a>
             <a href="/translate">🌐 ترجمه</a>
-            <a href="/bulk" style="color:#4cff8d;">📥 افزودن گروهی</a>
+            {% if session.user_role == 'admin' %}
+                <a href="/bulk" style="color:#4cff8d;">📥 افزودن گروهی</a>
+            {% endif %}
+            <a href="/chat">💬 چت</a>
             <a href="/profile">👤 پروفایل</a>
+            <a href="/history">📋 تاریخچه</a>
+            <a href="/reminders">⏰ یادآور دارو</a>
+            <a href="/connect">📡 اتصال</a>
             <a href="/logout">🚪 خروج</a>
         </div>
     </nav>
     <div class="container">
         <h1>📥 افزودن گروهی بیماری‌ها</h1>
-        <p>هر خط: <code>نام | فوریت | توضیح | درمان | علامت۱,علامت۲,...</code></p>
-        <textarea id="data" placeholder="مالاریا | بالا | ... | ... | تب,لرز"></textarea>
+        
+        <div class="info-box">
+            <h3>📝 دو فرمت پشتیبانی می‌شود:</h3>
+            <p><strong>فرمت ساده (همه علائم وزن ۱):</strong></p>
+            <p><code>نام | فوریت | توضیح | درمان | علامت۱,علامت۲,...</code></p>
+            <p style="color:#aaa; font-size:14px;">مثال: <code>سرماخوردگی | کم | عفونت ویروسی | استراحت، مایعات | تب,عطسه,آبریزش بینی</code></p>
+            
+            <p style="margin-top:15px;"><strong>فرمت وزنی (وزن دلخواه علائم):</strong></p>
+            <p><code>نام | فوریت | توضیح | درمان | علامت۱:وزن, علامت۲:وزن,...</code></p>
+            <p style="color:#aaa; font-size:14px;">مثال: <code>فتق دیسک کمر | بالا | بیرون‌زدگی دیسک | فیزیوتراپی، جراحی | کمردرد:1, درد سیاتیک:3, بی‌حسی پا:2</code></p>
+            <p style="color:#ffa500; font-size:13px;">💡 وزن‌ها: ۱ = عمومی، ۲ = مهم، ۳ = بسیار کلیدی (تشخیصی)</p>
+        </div>
+
+        <textarea id="data" placeholder="هر خط یک بیماری..."></textarea>
         <button onclick="sendBulk()">🚀 افزودن همه</button>
         <div id="message"></div>
     </div>
@@ -47,7 +85,13 @@
             const lines = text.split('\n').filter(line => line.trim() !== '');
             const diseases = lines.map(line => {
                 const parts = line.split('|').map(p => p.trim());
-                return { name: parts[0]||'', urgency: parts[1]||'کم', description: parts[2]||'', treatment: parts[3]||'', symptoms: parts[4]||'' };
+                return {
+                    name: parts[0]||'',
+                    urgency: parts[1]||'کم',
+                    description: parts[2]||'',
+                    treatment: parts[3]||'',
+                    symptoms: parts[4]||''
+                };
             });
             document.getElementById('message').textContent = 'در حال افزودن...';
             const response = await fetch('/api/bulk_add', {

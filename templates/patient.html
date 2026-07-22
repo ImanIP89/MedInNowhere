@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedInNowhere ۲.۱ | تشخیص بیمار</title>
+    <title>MedInNowhere ۳.۱ | تشخیص بیمار</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#4cff8d">
     <style>
@@ -110,6 +110,16 @@
         .answer-yes:hover { background: #3adb76; }
         .answer-no { background: #ff4c4c; color: #fff; }
         .answer-no:hover { background: #e04444; }
+        .red-flags-box {
+            background: rgba(255,0,0,0.2);
+            border: 2px solid #ff4c4c;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            animation: pulse 1.5s infinite;
+        }
+        .red-flags-box h3 { color: #ff4c4c; margin-bottom: 10px; }
+        .red-flags-box p { color: #fff; margin: 5px 0; }
 
         /* Modal Body Map */
         .modal {
@@ -157,7 +167,7 @@
         <div id="guidedArea"></div>
         <div class="disclaimer">
             ⚠️ این ابزار جایگزین پزشک نیست.<br>
-            <span style="font-size:10px;">MedInNowhere نسخه ۲.۱</span>
+            <span style="font-size:10px;">MedInNowhere نسخه ۳.۱</span>
         </div>
     </div>
 
@@ -252,7 +262,18 @@
                 const data = await resp.json();
                 if (data.error) { resultDiv.className = 'error'; resultDiv.innerHTML = `<span class="detail-label">❌ ${data.error}</span>`; }
                 else {
-                    let html = `<p style="color:#4cff8d;">🔍 علائم شناسایی‌شده: ${data.symptoms_found.join('، ')}</p><h3>تشخیص‌های محتمل:</h3>`;
+                    let html = '';
+
+                    // Red Flags
+                    if (data.red_flags && data.red_flags.length > 0) {
+                        html += '<div class="red-flags-box"><h3>🚨 هشدارهای فوری (Red Flags)</h3>';
+                        data.red_flags.forEach(flag => {
+                            html += `<p><strong>${flag.symptom}:</strong> ${flag.message}</p>`;
+                        });
+                        html += '</div>';
+                    }
+
+                    html += `<p style="color:#4cff8d;">🔍 علائم شناسایی‌شده: ${data.symptoms_found.join('، ')}</p><h3>تشخیص‌های محتمل:</h3>`;
                     data.candidates.forEach((c, i) => {
                         let cls = c.urgency === 'کم' ? 'urgency-low' : c.urgency === 'متوسط' ? 'urgency-medium' : 'urgency-high';
                         html += `<div class="${cls}" style="margin-bottom:15px; padding:15px; border-radius:10px;">
@@ -299,9 +320,7 @@
     </script>
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/static/service-worker.js');
-        });
+        window.addEventListener('load', () => { navigator.serviceWorker.register('/static/service-worker.js'); });
       }
     </script>
 </body>

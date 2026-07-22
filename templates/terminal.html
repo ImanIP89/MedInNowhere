@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedInNowhere ۲.۱ | ترمینال پزشک</title>
+    <title>MedInNowhere ۳.۱ | ترمینال پزشک</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#4cff8d">
     <style>
@@ -91,9 +91,7 @@
     </div>
 
     <script>
-        function getCsrfToken() {
-            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        }
+        function getCsrfToken() { return document.querySelector('meta[name="csrf-token"]').getAttribute('content'); }
         const logArea = document.getElementById('logArea');
         const cmdInput = document.getElementById('cmdInput');
         const micTerminalBtn = document.getElementById('micTerminalBtn');
@@ -133,9 +131,7 @@
                         addLog(line, isPersian);
                     }
                 });
-            } catch (error) {
-                addLog(`❌ خطای fetch: ${error.message}`);
-            }
+            } catch (error) { addLog(`❌ خطای fetch: ${error.message}`); }
             addLog('');
             cmdInput.value = '';
         }
@@ -152,22 +148,14 @@
         let termRecognition, termRecording = false;
         if (SpeechRecognitionTerm) {
             termRecognition = new SpeechRecognitionTerm();
-            termRecognition.lang = 'fa-IR';
-            termRecognition.interimResults = false;
-            termRecognition.continuous = false;
+            termRecognition.lang = 'fa-IR'; termRecognition.interimResults = false; termRecognition.continuous = false;
             termRecognition.onresult = (event) => {
                 const voiceText = event.results[0][0].transcript.trim();
-                if (voiceText) {
-                    cmdInput.value = 'diagnose ' + voiceText;
-                    addLog('🎤 گفتار تشخیص داده شد: ' + voiceText, true);
-                    executeCommand('diagnose ' + voiceText);
-                }
+                if (voiceText) { cmdInput.value = 'diagnose ' + voiceText; addLog('🎤 گفتار تشخیص داده شد: ' + voiceText, true); executeCommand('diagnose ' + voiceText); }
             };
             termRecognition.onerror = () => { addLog('❌ خطا در تشخیص صدا'); termRecording = false; micTerminalBtn.style.color = '#0f0'; };
             termRecognition.onend = () => { termRecording = false; micTerminalBtn.style.color = '#0f0'; };
-        } else {
-            micTerminalBtn.style.display = 'none';
-        }
+        } else { micTerminalBtn.style.display = 'none'; }
 
         function toggleTerminalMic() {
             if (!termRecognition) return;
@@ -179,9 +167,7 @@
     </script>
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/static/service-worker.js');
-        });
+        window.addEventListener('load', () => { navigator.serviceWorker.register('/static/service-worker.js'); });
       }
     </script>
 </body>

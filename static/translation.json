@@ -1,0 +1,27 @@
+{
+  "en": {
+    "welcome_title": "Hello! I am MedInNowhere",
+    "welcome_subtitle": "Your AI-powered health assistant for preliminary diagnosis",
+    "nav_home": "🏠 Home",
+    "nav_patient": "👤 Patient",
+    "nav_terminal": "💻 Terminal",
+    "nav_chat": "💬 Chat",
+    "nav_profile": "👤 Profile",
+    "nav_history": "📋 History",
+    "nav_reminders": "⏰ Reminders",
+    "nav_referrals": "📋 Referrals",
+    "nav_translate": "🌐 Translate",
+    "nav_bulk": "📥 Bulk Add",
+    "nav_about": "📖 About",
+    "nav_logout": "🚪 Logout",
+    "nav_login": "🔑 Login",
+    "nav_register": "📝 Register",
+    "patient_title": "Health Assistant",
+    "patient_label": "📝 Your Symptoms:",
+    "patient_placeholder": "Describe your symptoms in Persian or English...",
+    "diagnose_btn": "🔍 Diagnose",
+    "guided_btn": "🧭 Guided Diagnosis",
+    "body_map_btn": "📍 Select Pain Location",
+    "disclaimer": "⚠️ This tool is not a substitute for a doctor. For awareness only."
+  }
+}

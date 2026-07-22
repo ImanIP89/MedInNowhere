@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedInNowhere ۲.۱ | درباره پروژه</title>
+    <title>MedInNowhere ۳.۱ | درباره پروژه</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#4cff8d">
     <style>
@@ -77,19 +77,31 @@
 </head>
 <body>
     <nav class="navbar">
-        <div class="logo">🩺 MedInNowhere</div>
+        <div class="logo">🩺 MedInNowhere ۳.۰</div>
         <ul class="nav-links">
             <li><a href="/">🏠 خانه</a></li>
             <li><a href="/patient">👤 بیمار</a></li>
             <li><a href="/about" style="color:#4cff8d;">📖 درباره</a></li>
             {% if session.user_id %}
+                {% if session.user_role in ('doctor', 'admin') %}
+                    <li><a href="/terminal">💻 ترمینال</a></li>
+                    <li><a href="/referrals">📋 ارجاع‌ها</a></li>
+                {% endif %}
+                <li><a href="/xray">🦴 تشخیص تصویری</a></li>
+                <li><a href="/translate">🌐 ترجمه</a></li>
+                {% if session.user_role == 'admin' %}
+                    <li><a href="/bulk">📥 افزودن گروهی</a></li>
+                {% endif %}
+                <li><a href="/chat">💬 چت</a></li>
                 <li><a href="/profile">👤 پروفایل</a></li>
                 <li><a href="/history">📋 تاریخچه</a></li>
                 <li><a href="/reminders">⏰ یادآور دارو</a></li>
+                <li><a href="/connect">📡 اتصال</a></li>
                 <li><a href="/logout">🚪 خروج</a></li>
             {% else %}
                 <li><a href="/login">🔑 ورود</a></li>
                 <li><a href="/register">📝 ثبت‌نام</a></li>
+                <li><a href="/connect">📡 اتصال</a></li>
             {% endif %}
         </ul>
     </nav>
@@ -124,6 +136,7 @@
                 <span class="tech-badge">ترجمه چندزبانه</span>
                 <span class="tech-badge">ترمینال CMD</span>
                 <span class="tech-badge">بارگذاری گروهی بیماری‌ها</span>
+                <span class="tech-badge">چت داخلی</span>
                 <span class="tech-badge">احراز هویت و نقش‌ها</span>
                 <span class="tech-badge">امنیت بالا (CSRF, Rate Limit)</span>
                 <span class="tech-badge">PWA (نصب روی موبایل)</span>
@@ -141,6 +154,7 @@
                 <span class="tech-badge">Flask-Limiter</span>
                 <span class="tech-badge">Werkzeug Security</span>
                 <span class="tech-badge">Service Worker</span>
+                <span class="tech-badge">SocketIO</span>
             </p>
         </div>
 
@@ -156,16 +170,16 @@
         <div class="section" style="text-align:center;">
             <h2>📂 متن‌باز (Open Source)</h2>
             <p>این پروژه تحت مجوز MIT منتشر شده و کد منبع آن روی GitHub در دسترس است.</p>
-            <a href="https://github.com/YOUR_USERNAME/medinnowhere" target="_blank" class="github-link">🔗 مشاهده در گیت‌هاب</a>
+            <a href="https://github.com/ImanIP89/MedInNowhere" target="_blank" class="github-link">🔗 مشاهده در گیت‌هاب</a>
         </div>
 
         <div class="version">
-            🩺 MedInNowhere نسخه ۲.۱
+            🩺 MedInNowhere نسخه ۳.۱
         </div>
     </div>
 
     <div class="footer">
-        ساخته‌شده با ❤️ برای آینده پزشکی دیجیتال — MedInNowhere نسخه ۲.۱
+        ساخته‌شده با ❤️ برای آینده پزشکی دیجیتال — MedInNowhere نسخه ۳.۱
     </div>
     <script>
       if ('serviceWorker' in navigator) {

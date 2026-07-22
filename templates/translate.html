@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedInNowhere ۲.۱ | مترجم پزشکی</title>
+    <title>MedInNowhere ۳.۱ | مترجم پزشکی</title>
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#4cff8d">
     <style>
@@ -22,14 +22,24 @@
 </head>
 <body>
     <nav class="navbar">
-        <span style="color:#4cff8d; font-weight:bold;">🩺 MedInNowhere</span>
+        <span style="color:#4cff8d; font-weight:bold;">🩺 MedInNowhere ۳.۰</span>
         <div>
             <a href="/">🏠 خانه</a>
-            {% if session.user_role in ('doctor', 'admin') %}<a href="/terminal">💻 ترمینال</a>{% endif %}
+            {% if session.user_role in ('doctor', 'admin') %}
+                <a href="/terminal">💻 ترمینال</a>
+                <a href="/referrals">📋 ارجاع‌ها</a>
+            {% endif %}
             <a href="/patient">👤 بیمار</a>
+            <a href="/xray">🦴 تشخیص تصویری</a>
             <a href="/translate" style="color:#4cff8d;">🌐 ترجمه</a>
-            {% if session.user_role == 'admin' %}<a href="/bulk">📥 افزودن گروهی</a>{% endif %}
+            {% if session.user_role == 'admin' %}
+                <a href="/bulk">📥 افزودن گروهی</a>
+            {% endif %}
+            <a href="/chat">💬 چت</a>
             <a href="/profile">👤 پروفایل</a>
+            <a href="/history">📋 تاریخچه</a>
+            <a href="/reminders">⏰ یادآور دارو</a>
+            <a href="/connect">📡 اتصال</a>
             <a href="/logout">🚪 خروج</a>
         </div>
     </nav>

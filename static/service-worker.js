@@ -2,8 +2,8 @@ const CACHE_NAME = 'medinnowhere-v2.1';
 const urlsToCache = [
   '/',
   '/static/manifest.json',
-  '/static/icon-192.png',
-  '/static/icon-512.png',
+  '/static/icon-192.jpg',
+  '/static/icon-512.jpg',
   '/patient',
   '/terminal',
   '/history',
